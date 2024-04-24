@@ -1,0 +1,7 @@
+/alembic
+alembic.ini
+**/__pycache__
+/.venv
+/Employe111
+/uploads
+/.idea
