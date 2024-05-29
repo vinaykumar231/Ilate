@@ -18,15 +18,10 @@ def create_parent(parent: ParentCreate, db: Session = Depends(get_db)):
 
 @router.get("/parent/{parent_id}", response_model=None)
 def read_parent(parent_id: int, db: Session = Depends(get_db)):
-    db_parent = db.query(Parent).filter(Parent.ParentID == parent_id).first()
+    db_parent = db.query(Parent).filter(Parent.parent_id == parent_id).first()
     if db_parent is None:
         raise HTTPException(status_code=404, detail="Parent not found")
     return db_parent
-
-
-@router.get("/parents/", response_model=None)
-def read_parents(db: Session = Depends(get_db)):
-    return db.query(Parent).all()
 
 
 @router.put("/parent/{parent_id}", response_model=None)
@@ -34,7 +29,7 @@ def update_parent(
     parent_id: int, parent: ParentCreate, db: Session = Depends(get_db)
 ):
     db_parent = (
-        db.query(Parent).filter(Parent.ParentID == parent_id).first()
+        db.query(Parent).filter(Parent.parent_id == parent_id).first()
     )
     if db_parent is None:
         raise HTTPException(status_code=404, detail="Parent not found")
@@ -50,10 +45,10 @@ def update_parent(
 @router.delete("/parent/{parent_id}", response_model=None)
 def delete_parent(parent_id: int, db: Session = Depends(get_db)):
     db_parent = (
-        db.query(Parent).filter(Parent.ParentID == parent_id).first()
+        db.query(Parent).filter(Parent.parent_id == parent_id).first()
     )
     if db_parent is None:
         raise HTTPException(status_code=404, detail="Parent not found")
     db.delete(db_parent)
     db.commit()
-    return db_parent
+    return {"message": "parents info deleted successfully"}

@@ -68,7 +68,7 @@ def get_admin_or_student(user_id: int = Depends(get_user_id_from_token), db: Ses
     user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="user not found")
-    if user.user_type not in ["admin"]:
+    if user.user_type not in ["admin", "student","user"]:
         raise HTTPException(status_code=403, detail="You are not authorized to perform this action")
     return user
 

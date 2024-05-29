@@ -20,7 +20,7 @@ async def read_usertype(usertype_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User type not found")
     return usertype
 
-# Create a new user type
+# Create a new user type 
 @router.post("/usertypes/", response_model=None)
 async def create_usertype(usertype_data: UserTypeCreate, db: Session = Depends(get_db)):
     usertype = UserType(**usertype_data.dict())

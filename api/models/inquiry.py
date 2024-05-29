@@ -1,6 +1,6 @@
 # models.py
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, DateTime, func
 from db.base import Base
 
 class Inquiry(Base):
@@ -11,3 +11,4 @@ class Inquiry(Base):
     email = Column(String(100))
     phone = Column(String(50))
     message = Column(Text)
+    created_on = Column(DateTime, default=func.now())

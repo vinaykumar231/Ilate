@@ -9,7 +9,13 @@ class Course(Base):
     name = Column(String(255))
     description = Column(String(255))
 
-    #standards = relationship("Standard", back_populates="course")
+    standards = relationship("Standard", back_populates="course")
 
     # subjects = relationship('Subject', back_populates='course')
     videos = relationship('Video', back_populates='course')
+
+   
+    course_details = relationship("CourseDetails", back_populates="course")
+    #fees = relationship("Fee", back_populates="course")
+    payments = relationship("Payment", back_populates="course")
+   # student = relationship("Student",uselist=False, back_populates="course")

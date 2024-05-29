@@ -61,13 +61,37 @@ async def lms_register(data: UserCreate, db: Session = Depends(get_db)):
 #         raise HTTPException(status_code=404, detail=f"Error: {str(e)}")
 
 #Nikunj
+
+@router.get("/read/lms_user", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+async def searchall(user_id: int = None, user_type: UserType = None, page_num: int = 1, page_size: int = 20,
+                    db: Session = Depends(get_db)):
+    return user_ops.searchall(user_id, user_type, page_num, page_size, db)
+
+
+@router.get("/get_my_profile")
+def get_current_user_details(current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        user_details = {
+            "user_id": current_user.user_id,
+            "username": current_user.user_name,
+            "email": current_user.user_email,
+            "user_type": current_user.user_type,
+            "is_formsubmited": current_user.is_formsubmited,
+            "is_payment_done": current_user.is_payment_done,
+            "created_on": current_user.created_on,
+
+        }
+        return api_response(data=user_details, status_code=200)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
 @router.put("/update/lms_user/{user_id}", dependencies=[Depends(JWTBearer())])
 async def lms_user_update(user_data: UpdateUser, user_id: int,
                           current_user: LmsUsers = Depends(get_current_user),
                           db: Session = Depends(get_db)):
     try:
-        if user_data.user_type and user_data.user_type not in {"user", "teacher", "admin"}:
-            raise HTTPException(status_code=403, detail="Invalid user type. Allowed values: user, teacher, admin")
+        if user_data.user_type and user_data.user_type not in {"user", "admin", "teacher", "student", "parent"}:
+            raise HTTPException(status_code=403, detail="Invalid user type. Allowed values: user, admin, teacher, student, parent")
 
         if current_user.user_type == "admin" or current_user.user_id == user_id:
             db_user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id, LmsUsers.is_deleted == False).first()
@@ -107,25 +131,7 @@ async def lms_user_update(user_data: UpdateUser, user_id: int,
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
-@router.get("/read/lms_user", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
-async def searchall(user_id: int = None, user_type: UserType = None, page_num: int = 1, page_size: int = 20,
-                    db: Session = Depends(get_db)):
-    return user_ops.searchall(user_id, user_type, page_num, page_size, db)
 
-
-@router.get("/get_my_profile")
-def get_current_user_details(current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
-    try:
-        user_details = {
-            "user_id": current_user.user_id,
-            "username": current_user.user_name,
-            "email": current_user.user_email,
-            "user_type": current_user.user_type,
-
-        }
-        return api_response(data=user_details, status_code=200)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 # @router.get("/get_my_profile", dependencies=[Depends(JWTBearer())])
 # async def get_current_user_details(current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):

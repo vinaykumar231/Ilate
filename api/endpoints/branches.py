@@ -6,9 +6,18 @@ from ..schemas import BranchCreate, BranchUpdate
 
 router = APIRouter()
 
+# Create a new branch
+@router.post("/branches/", response_model=None)
+async def create_branch(branch_data: BranchCreate, db: Session = Depends(get_db)):
+    branch = Branch(**branch_data.dict())
+    db.add(branch)
+    db.commit()
+    db.refresh(branch)
+    return branch
+
 # Get all branches
 @router.get("/branches/", response_model=None)
-async def read_branches(db: Session = Depends(get_db)):
+async def read_all_branches(db: Session = Depends(get_db)):
     return db.query(Branch).all()
 
 # Get a specific branch by ID
@@ -17,15 +26,6 @@ async def read_branch(branch_id: int, db: Session = Depends(get_db)):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if branch is None:
         raise HTTPException(status_code=404, detail="Branch not found")
-    return branch
-
-# Create a new branch
-@router.post("/branches/", response_model=None)
-async def create_branch(branch_data: BranchCreate, db: Session = Depends(get_db)):
-    branch = Branch(**branch_data.dict())
-    db.add(branch)
-    db.commit()
-    db.refresh(branch)
     return branch
 
 # Update a branch by ID

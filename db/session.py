@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root@localhost/lms_db1"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:root@localhost:3306/lms_23_may"
 # SQLALCHEMY_DATABASE_URL = "postgresql+psycopg2://postgres.fjubgwysqgxcedhwhvdu:y5pD2C5abBLMQjVN@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

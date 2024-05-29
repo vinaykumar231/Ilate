@@ -2,17 +2,24 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from sqlalchemy.orm import Session
 from db.session import get_db
-from ..models import Module
+from ..models import Module, Subject
 from ..schemas import ModuleCreate, ModuleUpdate
+from auth.auth_bearer import get_admin, JWTBearer
 
 router = APIRouter()
 
-# Get all modules
-@router.get("/modules/", response_model=None)
-async def read_modules(db: Session = Depends(get_db)):
-    return db.query(Module).all()
 
-# Get a specific module by ID
+@router.post("/modules/", response_model=None)
+async def create_module(subject_id: int,module_data: ModuleCreate, db: Session = Depends(get_db)):
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="subject not found")
+    module = Module(**module_data.dict(),subject_id=subject_id )
+    db.add(module)
+    db.commit()
+    db.refresh(module)
+    return module
+
 @router.get("/modules/{module_id}", response_model=None)
 async def read_module(module_id: int, db: Session = Depends(get_db)):
     module = db.query(Module).filter(Module.id == module_id).first()
@@ -20,29 +27,28 @@ async def read_module(module_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Module not found")
     return module
 
-# Create a new module
-@router.post("/modules/", response_model=None)
-async def create_module(module_data: ModuleCreate, db: Session = Depends(get_db)):
-    module = Module(**module_data.dict())
-    db.add(module)
-    db.commit()
-    db.refresh(module)
-    return module
+@router.get("/modules/", response_model=None)
+async def read_all_modules(db: Session = Depends(get_db)):
+    return db.query(Module).all()
 
-# Update a module by ID
-@router.put("/modules/{module_id}", response_model=None)
-async def update_module(module_id: int, module_data: ModuleUpdate, db: Session = Depends(get_db)):
-    module = db.query(Module).filter(Module.id == module_id).first()
-    if module is None:
+@router.put("/modules/{module_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+async def update_module(module_id: int, module_update: ModuleUpdate, db: Session = Depends(get_db)):
+    db_module = db.query(Module).filter(Module.id == module_id).first()
+    if not db_module:
         raise HTTPException(status_code=404, detail="Module not found")
-    for key, value in module_data.dict().items():
-        setattr(module, key, value)
+    if module_update.name:
+        db_module.name = module_update.name
+    if module_update.subject_id:
+        subject = db.query(Subject).filter(Subject.id == module_update.subject_id).first()
+        if not subject:
+            raise HTTPException(status_code=404, detail="Subject not found")
+        db_module.subject_id = module_update.subject_id
     db.commit()
-    db.refresh(module)
-    return module
+    db.refresh(db_module)
+    return db_module
 
-# Delete a module by ID
-@router.delete("/modules/{module_id}", response_model=None)
+
+@router.delete("/modules/{module_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_module(module_id: int, db: Session = Depends(get_db)):
     module = db.query(Module).filter(Module.id == module_id).first()
     if module is None:

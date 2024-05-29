@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Depends
 from db.base import Base
 from sqlalchemy.sql import func
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, TIMESTAMP, BIGINT, Enum
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, TIMESTAMP, BIGINT, Enum, ForeignKey
 from db.session import api_response, get_db, SessionLocal
 from datetime import datetime
 import re
@@ -19,13 +19,22 @@ class LmsUsers(Base):
     user_password = Column(String(255))
     user_type = Column(String(100))
     phone_no = Column(BIGINT)
+    branch_id = Column(Integer, ForeignKey("branches.id"))
     is_deleted = Column(Boolean, server_default='0', nullable=False)
     created_on = Column(DateTime, default=func.now())
     updated_on = Column(TIMESTAMP, server_default=func.now(), onupdate=func.current_timestamp())
     deleted_on = Column(DateTime)
+    is_payment_done = Column(Boolean, server_default='0', nullable=False)
+    is_formsubmited = Column(Boolean, server_default='0', nullable=False)
+
 
     demos = relationship("DemoFormFill", back_populates="demo")
-    payments = relationship("PaymentStatus", back_populates="user")
+    #payments = relationship("PaymentStatus", back_populates="user")
+    branch = relationship("Branch", back_populates="user")
+
+    student = relationship("Student", back_populates="user")
+
+    teacher = relationship("Teacher", back_populates="user")
 
     # #######################################################################################################################
     @staticmethod
@@ -160,16 +169,30 @@ class LmsUsers(Base):
 
             if bcrypt.checkpw(credential.user_password.encode('utf-8'), user.user_password.encode('utf-8')):
                 token, exp = signJWT(user.user_id, user.user_type)
-                response = {
-                    'token': token,
-                    "user_id": user.user_id,
-                    "user_name": user.user_name,
-                    'email_id': user.user_email,
-                    'user_type': user.user_type,
-                    "created_on": user.created_on,
-                    'updated_on': user.updated_on,
-                    'phone_no': user.phone_no
-                }
+                if user.user_type == "user" or user.user_type == "student":
+                    response = {
+                        'token': token,
+                        'exp' : exp,
+                        'user_id': user.user_id,
+                        'user_name': user.user_name,
+                        'email_id': user.user_email,
+                        'user_type': user.user_type,
+                        'created_on': user.created_on,
+                        'phone_no': user.phone_no,
+                        'isFormSubmitted' : user.is_formsubmited,
+                        'isPaymentDone' : user.is_payment_done
+                    }
+                else:
+                    response = {
+                        'token': token,
+                        'exp' : exp,
+                        'user_id': user.user_id,
+                        'user_name': user.user_name,
+                        'email_id': user.user_email,
+                        'user_type': user.user_type,
+                        'created_on': user.created_on,
+                        'phone_no': user.phone_no,
+                    }
 
                 return response
             else:
