@@ -84,4 +84,4 @@ app.include_router(admission_router, prefix="/api", tags=["Student_&_Admin Route
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", port=8001, reload=True, host='0.0.0.0')
+    uvicorn.run("main:app")
