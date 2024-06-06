@@ -5,6 +5,7 @@ from auth.auth_bearer import JWTBearer, get_current_user, get_admin
 from ..models import DemoFormFill, LmsUsers
 from ..schemas import DemoformfillCreate
 from datetime import datetime
+import pytz
 
 
 router = APIRouter()
@@ -13,8 +14,10 @@ router = APIRouter()
 @router.post("/demoformfill/", response_model=None,  dependencies=[Depends(JWTBearer())])
 def create_demoformfill(demo_form: DemoformfillCreate, current_user:LmsUsers = Depends(get_current_user),
                         db: Session = Depends(get_db)):
+    utc_now = pytz.utc.localize(datetime.utcnow())
+    ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
     db_demoformfill = DemoFormFill(**demo_form.dict(), user_id=current_user.user_id)
-    db_demoformfill.created_on = datetime.now()
+    db_demoformfill.created_on = ist_now
     db.add(db_demoformfill)
     db.commit()
     db.refresh(db_demoformfill)
@@ -37,7 +40,7 @@ def read_demoformfill(demofill_id :int,db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Demoformfill not found")
      return db_demoformfill
 
-@router.put("/demoformfill/{demoformfill_id}", response_model=None)
+@router.put("/demoformfill/{demoformfill_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def update_demoformfill(demoformfill_id: int, demo_form: DemoformfillCreate, db: Session = Depends(get_db)):
     try:
         db_demoformfill = db.query(DemoFormFill).filter(DemoFormFill.id == demoformfill_id).first()
@@ -54,7 +57,7 @@ def update_demoformfill(demoformfill_id: int, demo_form: DemoformfillCreate, db:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.delete("/demoformfill/{demoformfill_id}")
+@router.delete("/demoformfill/{demoformfill_id}", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def delete_demoformfill(demoformfill_id: int, db: Session = Depends(get_db)):
     try:
         db_demoformfill = db.query(DemoFormFill).filter(DemoFormFill.id == demoformfill_id).first()

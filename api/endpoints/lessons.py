@@ -6,10 +6,11 @@ from ..models import Lesson
 from pydantic import BaseModel, Field
 from ..schemas import LessonCreate, LessonResponse
 from ..models.module import Module
+from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher, get_admin_or_student
 
 router = APIRouter()
 
-@router.post("/lessons/", response_model=None)
+@router.post("/lessons/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def create_lesson(module_id: int, lesson: LessonCreate, db: Session = Depends(get_db)):
     module = db.query(Module).filter(Module.id == module_id).first()
     if not module:
@@ -20,19 +21,19 @@ async def create_lesson(module_id: int, lesson: LessonCreate, db: Session = Depe
     db.refresh(db_lesson)
     return db_lesson
 
-@router.get("/lessons/get_all_lessons/", response_model=None)
+@router.get("/lessons/get_all_lessons/", response_model=None,dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def read_lessons(db: Session = Depends(get_db)):
     lessons = db.query(Lesson).all()
     return lessons
 
-@router.get("/lessons/{lesson_id}", response_model=LessonResponse)
+@router.get("/lessons/{lesson_id}", response_model=LessonResponse, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 def get_lesson(lesson_id: int, db: Session = Depends(get_db)):
     db_lesson = db.query(Lesson).filter(Lesson.lesson_id == lesson_id).first()
     if db_lesson is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     return db_lesson
 
-@router.put("/lessons/{lesson_id}", response_model=None)
+@router.put("/lessons/{lesson_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 def update_lesson(lesson_id: int, lesson: LessonCreate, db: Session = Depends(get_db)):
     db_lesson = db.query(Lesson).filter(Lesson.lesson_id == lesson_id).first()
     if db_lesson is None:
@@ -43,7 +44,7 @@ def update_lesson(lesson_id: int, lesson: LessonCreate, db: Session = Depends(ge
     db.refresh(db_lesson)
     return db_lesson
 
-@router.delete("/lessons/{lesson_id}")
+@router.delete("/lessons/{lesson_id}", dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 def delete_lesson(lesson_id: int, db: Session = Depends(get_db)):
     db_lesson = db.query(Lesson).filter(Lesson.lesson_id == lesson_id).first()
     if db_lesson is None:

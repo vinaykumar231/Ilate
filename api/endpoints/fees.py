@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from ..models import Fee, Course, Standard, Subject, Module, Batch
 from ..schemas import FeeCreate, FeeUpdate
+from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher, get_admin_or_student
 
 router = APIRouter()
 
@@ -52,7 +53,7 @@ def get_amount_by_criteria(
         
 
 # Create a new fee
-@router.post("/fees/create_fees/", response_model=None)
+@router.post("/fees/create_fees/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_student)])
 async def create_fee(fee_data: FeeCreate, db: Session = Depends(get_db)):
     # Define a list of all related entities
     related_entities = [
@@ -75,7 +76,7 @@ async def create_fee(fee_data: FeeCreate, db: Session = Depends(get_db)):
     db.refresh(fee)
     return fee
 
-@router.get("/fees/bycriteria", response_model=None)
+@router.get("/fees/bycriteria", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def read_fees(
     course_id: int = None, standard_id: int = None, year: int = None, subject_id: int = None,
     module_id: int = None, batch_id: int = None, db: Session = Depends(get_db)
@@ -84,12 +85,12 @@ async def read_fees(
 
 
 # Get all fees
-@router.get("/fees/all_fees/", response_model=None)
+@router.get("/fees/all_fees/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def read_fees(db: Session = Depends(get_db)):
     return db.query(Fee).all()
 
 # Get a specific fee by ID
-@router.get("/fees/{fee_id}", response_model=None)
+@router.get("/fees/{fee_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def read_fee(fee_id: int, db: Session = Depends(get_db)):
     fee = db.query(Fee).filter(Fee.id == fee_id).first()
     if fee is None:
@@ -97,7 +98,7 @@ async def read_fee(fee_id: int, db: Session = Depends(get_db)):
     return fee
 
 # Update a fee by ID
-@router.put("/fees/update_fees/{fee_id}", response_model=None)
+@router.put("/fees/update_fees/{fee_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def update_fee(fee_id: int, fee_data: FeeUpdate, db: Session = Depends(get_db)):
     fee = db.query(Fee).filter(Fee.id == fee_id).first()
     if fee is None:
@@ -109,7 +110,7 @@ async def update_fee(fee_id: int, fee_data: FeeUpdate, db: Session = Depends(get
     return fee
 
 # Delete a fee by ID
-@router.delete("/fees/delete_fees/{fee_id}", response_model=None)
+@router.delete("/fees/delete_fees/{fee_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_fee(fee_id: int, db: Session = Depends(get_db)):
     fee = db.query(Fee).filter(Fee.id == fee_id).first()
     if fee is None:

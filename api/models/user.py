@@ -9,6 +9,7 @@ from sqlalchemy.orm import relationship
 import bcrypt
 from api.schemas import ChangePassword, LoginInput, UpdateUser, UserType
 from auth.auth_handler import signJWT
+import pytz
 
 
 class LmsUsers(Base):
@@ -65,7 +66,9 @@ class LmsUsers(Base):
                 raise HTTPException(400, detail="Invalid Phone number")
 
             usr = LmsUsers(**data)
-            usr.created_on = datetime.now()
+            utc_now = pytz.utc.localize(datetime.utcnow())
+            ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+            usr.created_on = ist_now
             hashed_password = bcrypt.hashpw(data.get('user_password').encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             usr.user_password = hashed_password
             db.add(usr)

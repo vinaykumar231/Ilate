@@ -5,11 +5,12 @@ from db.session import get_db
 from ..models import Module, Subject
 from ..schemas import ModuleCreate, ModuleUpdate
 from auth.auth_bearer import get_admin, JWTBearer
+from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher, get_admin_or_student
 
 router = APIRouter()
 
 
-@router.post("/modules/", response_model=None)
+@router.post("/modules/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def create_module(subject_id: int,module_data: ModuleCreate, db: Session = Depends(get_db)):
     subject = db.query(Subject).filter(Subject.id == subject_id).first()
     if not subject:

@@ -565,8 +565,8 @@ class ContentCreate(BaseModel):
 
 class ContentCreateRequest(BaseModel):
     name: str
-    description: str
-    content_type: str
+    description: str = None
+    content_type: str = None
     lesson_id: int
     files:List[UploadFile]= None
 

@@ -6,7 +6,7 @@ from ..models.mail import Mail
 from pydantic import BaseModel, Field
 from ..schemas import  MailCreate
 from datetime import datetime
-
+import pytz
 
 
 router = APIRouter()
@@ -18,7 +18,9 @@ router = APIRouter()
 @router.post("/mail/", response_model=None)
 def create_mail(mail: MailCreate, db: Session = Depends(get_db)):
     db_mail = Mail(**mail.dict())
-    db_mail.created_on = datetime.now()
+    utc_now = pytz.utc.localize(datetime.utcnow())
+    ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+    db_mail.created_on = ist_now
     db.add(db_mail)
     db.commit()
     db.refresh(db_mail)
