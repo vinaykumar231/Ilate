@@ -5,7 +5,7 @@ from auth.auth_bearer import JWTBearer,get_admin
 from ..models import Inquiry
 from ..schemas import InquiryCreate, InquiryUpdate
 from datetime import datetime
-
+import pytz
 
 
 router = APIRouter()
@@ -14,8 +14,10 @@ router = APIRouter()
 @router.post("/inquiries/", response_model=None)
 async def create_inquiry(inquiry: InquiryCreate, db: Session = Depends(get_db)):
     try:
+        utc_now = pytz.utc.localize(datetime.utcnow())
+        ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
         db_inquiry = Inquiry(**inquiry.dict())
-        db_inquiry.created_on = datetime.now()
+        db_inquiry.created_on = ist_now
         db.add(db_inquiry)
         db.commit()
         db.refresh(db_inquiry)

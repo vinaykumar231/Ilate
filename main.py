@@ -36,7 +36,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 app.include_router(companies_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
-app.include_router(branches_router, prefix="/api", tags=["Admin Routes"])
+app.include_router(branches_router, prefix="/api")
 # app.include_router(usertypes_router, prefix="/api")
 # app.include_router(students_router, prefix="/api")
 # app.include_router(designations_router, prefix="/api")
@@ -84,4 +84,4 @@ app.include_router(admission_router, prefix="/api", tags=["Student_&_Admin Route
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app")
+    uvicorn.run("main:app", port=8001, reload=True, host='0.0.0.0')

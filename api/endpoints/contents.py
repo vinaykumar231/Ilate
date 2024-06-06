@@ -8,9 +8,11 @@ from db.session import get_db
 from ..models import Content
 from ..schemas import ContentCreate
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from ..models.content import save_upload
 from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher
-
+from fastapi.responses import JSONResponse
+import os
+import uuid
+import shutil
 
 router = APIRouter()
 
@@ -28,37 +30,52 @@ async def create_content(
         if not lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
         
-        # Save uploaded files if provided
+        # Create an empty list to store file paths
         file_paths = []
-        for file in files:
-            file_path = f"static/uploads/{file.filename}"
-            with open(file_path, "wb") as buffer:
-                buffer.write(file.file.read())
-            file_paths.append(file_path)
 
+        # Iterate over uploaded files and process each one
+        for upload_file in files:
+            unique_filename = str(uuid.uuid4()) + "_" + upload_file.filename
+            file_path = os.path.join("static", "uploads", unique_filename)
+            
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(upload_file.file, buffer)
+            
+            # Convert backslashes to forward slashes
+            file_path = file_path.replace("\\", "/")
+            
+            # Append the file path to the list
+            file_paths.append(file_path)
+        
+        # Now you have the list of file paths, you can do whatever you need with it
+        # For example, you can use it to create a new Content object
+        
         db_content = Content(
             name=name,
             description=description,
             content_type=content_type,
             lesson_id=lesson_id,
-            content_path=file_paths if files else [None]  
+            content_path=file_paths
         )
 
         db.add(db_content)
         db.commit()
         db.refresh(db_content)
 
-        return db_content
+        return {"file_paths": file_paths}  # Returning the list of file paths
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/content/get_all", response_model=None)
+    
+@router.get("/content/get_all", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def get_all_content(db: Session = Depends(get_db)):
     contents = db.query(Content).all()
     if not contents:
         raise HTTPException(status_code=404, detail="No content found")
     
-    base_url_path = "http://192.168.29.40:8000"  # Your base URL path
+    base_url_path = "http://192.168.29.82:8001"  # Your base URL path
 
     all_content_data = []
     for content in contents:
@@ -68,19 +85,19 @@ async def get_all_content(db: Session = Depends(get_db)):
             "description": content.description,
             "content_type": content.content_type,
             "lesson_id": content.lesson_id,
-            "content_path": f"{base_url_path}/{content.content_path}" if content.content_path else None
+            "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
         }
         all_content_data.append(content_data)
 
-    return all_content_data
+    return JSONResponse(content=all_content_data)
 
-@router.get("/content/{content_id}", response_model=None)
+@router.get("/content/{content_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def get_content_by_id(content_id: int, db: Session = Depends(get_db)):
     content = db.query(Content).filter(Content.id == content_id).first()
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
     
-    base_url_path = "http://192.168.29.40:8000"  # Your base URL path
+    base_url_path = "http://192.168.29.82:8001"  # Your base URL path
 
     content_data = {
         "id": content.id,
@@ -88,7 +105,7 @@ async def get_content_by_id(content_id: int, db: Session = Depends(get_db)):
         "description": content.description,
         "content_type": content.content_type,
         "lesson_id": content.lesson_id,
-        "content_path": f"{base_url_path}/{content.content_path}" if content.content_path else None
+        "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
     }
 
     return content_data
@@ -116,10 +133,31 @@ def delete_file_from_storage(file_path: str):
     except Exception as e:
         print(f"Error deleting file: {e}")
 
-@router.put("/content/{content_id}", response_model=None)
+from ..models.content import save_upload
+
+def save_upload(files: List[UploadFile]) -> List[str]:
+    file_paths = []
+    try:
+        for upload_file in files:
+            unique_filename = str(uuid.uuid4()) + "_" + upload_file.filename
+            file_path = os.path.join("static", "uploads", unique_filename)
+            
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(upload_file.file, buffer)
+            
+            # Convert backslashes to forward slashes
+            file_path = file_path.replace("\\", "/")
+            file_paths.append(file_path)
+        return file_paths
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+
+@router.put("/content/{content_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def update_content(
     content_id: int,
-    name: str = Form(...),
+    name: str = Form(None),
     description: str = Form(None),
     content_type: str = Form(None),
     lesson_id: int = Form(...),
@@ -134,34 +172,45 @@ async def update_content(
         original_content_path_count = len(db_content.content_path)
         original_content_paths = db_content.content_path[:]
 
-        db_content.name = name
-        db_content.description = description
-        db_content.content_type = content_type
+        # Update name and description if provided
+        if name is not None:
+            db_content.name = name
+        if description is not None:
+            db_content.description = description
+
+        # Update content_type if provided
+        if content_type is not None:
+            db_content.content_type = content_type
+
+        # Update lesson_id
         db_content.lesson_id = lesson_id
 
+        # Process uploaded files if provided
         if files:
-            content_path_list = []
-            for file in files:
-                content_path = save_upload(file)
-                content_path_list.append(content_path)
+            content_path_list = save_upload(files)
             db_content.content_path = content_path_list
 
         new_content_path_count = len(db_content.content_path)
 
+        # Check if the number of files has changed
         if new_content_path_count > original_content_path_count:
             increment_content_file_count(db, db_content.id)
         elif new_content_path_count < original_content_path_count:
+            # Delete excess files from storage
             excess_files = original_content_paths[new_content_path_count:]
             for file_path in excess_files:
                 delete_file_from_storage(file_path)
             db_content.content_path = db_content.content_path[:new_content_path_count]
+
         db.commit()
         return {"message": "Content updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
     
 
-@router.delete("/content/{content_id}")
+@router.delete("/content/{content_id}", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def delete_content(content_id: int, db: Session = Depends(get_db)):
     try:
         content = db.query(Content).filter(Content.id == content_id).first()

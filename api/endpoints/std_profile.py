@@ -6,11 +6,17 @@ from ..models import Student, ContactInformation, PreEducation, Parent, LmsUsers
 from ..schemas import (StudentContactCreate, PreEducationCreate, ParentCreate,  StudentUpdate,
                        StudentContactUpdate, PreEducationUpdate, ParentInfoUpdate, CourseDetailsCreate, CourseDetailsUpdate)
 from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_or_student
-from ..models.Students import save_upload
+#from ..models.Students import save_upload
 from ..schemas import StudentCreate, StudentUpdate
 from datetime import datetime
 from typing import List, Union
 from sqlalchemy import desc
+from typing import Optional
+import os
+import uuid
+import shutil
+from datetime import date
+import pytz
 
 router = APIRouter()
 
@@ -157,6 +163,24 @@ def get_payment_status_by_user_id(db_session: Session, user_id: int) -> bool:
     else:
         return False 
 
+def save_upload_file(upload_file: Optional[UploadFile]) -> Optional[str]:
+    if not upload_file:
+        return None
+    
+    try:
+        unique_filename = str(uuid.uuid4()) + "_" + upload_file.filename
+        file_path = os.path.join("static", "uploads", unique_filename)
+        
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(upload_file.file, buffer)
+        
+        # Convert backslashes to forward slashes
+        file_path = file_path.replace("\\", "/")
+        return file_path
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
 
 #########################################################################################################################
 
@@ -204,18 +228,9 @@ async def fill_admission_form(
         raise HTTPException(status_code=400, detail="Admission form has already been submitted")
     
     # Handle file uploads
-    id_proof_path = None
-    address_proof_path = None
+    id_proof_path = save_upload_file(id_proof)
+    address_proof_path = save_upload_file(address_proof)
 
-    if id_proof:
-        id_proof_path = f"static/uploads/{id_proof.filename}"
-        with open(id_proof_path, "wb") as buffer:
-            buffer.write(id_proof.file.read())
-
-    if address_proof:
-        address_proof_path = f"static/uploads/{address_proof.filename}"
-        with open(address_proof_path, "wb") as buffer:
-            buffer.write(address_proof.file.read())
 
     try:
         # Create student record
@@ -298,7 +313,7 @@ async def fill_admission_form(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to submit admission form: {str(e)}")
 
-base_url_path = "http://192.168.29.40:8001"
+base_url_path = "http://192.168.29.82:8001"
 
 @router.get("/admission/get_all", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def get_all_admissions(db: Session = Depends(get_db)):
@@ -436,20 +451,22 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     
     payment = db.query(Payment).filter(Payment.user_id == user_id).order_by(desc(Payment.created_on)).first()
     if payment:
+            utc_now = pytz.utc.localize(datetime.utcnow())
+            ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
             student_data["payment_details"].update({
                 "payment_id": payment.payment_id,
                 "amount": payment.amount,
                 "payment_mode": payment.payment_mode,
                 "payment_info": payment.payment_info,
                 "other_info": payment.other_info,
-                "created_on": payment.created_on
+                "created_on": ist_now
             })
     student_data["is_payment_done"] = is_payment_done
     return student_data
 
 
 
-@router.put("/admission/{student_id}", response_model=None)
+@router.put("/admission/{student_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_student)])
 async def update_admission_form(
     student_id: int,
     first_name: str = Form(None),
@@ -533,9 +550,9 @@ async def update_admission_form(
     if date_of_completion is not None:
         existing_student.date_of_completion = date_of_completion
     if id_proof is not None:
-        existing_student.id_proof = save_upload(id_proof)
+        existing_student.id_proof = save_upload_file(id_proof)
     if address_proof is not None:
-        existing_student.Address_proof = save_upload(address_proof)
+        existing_student.Address_proof = save_upload_file(address_proof)
 
     # Update contact information
     existing_contact_info = db.query(ContactInformation).filter(ContactInformation.student_id == student_id).first()
@@ -601,15 +618,26 @@ async def update_admission_form(
     return {"message": "Admission form has been updated successfully"}
 
 
+
+
 @router.delete("/admission/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_admission_form(user_id: int, db: Session = Depends(get_db)):
     existing_form = db.query(Student).filter(Student.user_id == user_id).first()
     if not existing_form:
         raise HTTPException(status_code=404, detail="Student not found")
 
+    # Delete associated contact information, pre-education, parent, and student records
     db.query(ContactInformation).filter(ContactInformation.student_id == existing_form.id).delete()
     db.query(PreEducation).filter(PreEducation.student_id == existing_form.id).delete()
     db.query(Parent).filter(Parent.student_id == existing_form.id).delete()
+    
+    # Remove ID proof and address proof files
+    if existing_form.id_proof and os.path.exists(existing_form.id_proof):
+        os.remove(existing_form.id_proof)
+    if existing_form. Address_proof and os.path.exists(existing_form. Address_proof):
+        os.remove(existing_form. Address_proof)
+    
+    # Delete the student record
     db.delete(existing_form)
     db.commit()
 
@@ -617,7 +645,7 @@ async def delete_admission_form(user_id: int, db: Session = Depends(get_db)):
     lms_user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
     if not lms_user:
         raise HTTPException(status_code=404, detail="User not found")
-
+    
     # Modify user_type and is_formsubmited attributes
     lms_user.user_type = 'student'
     lms_user.is_formsubmited = False
@@ -625,6 +653,7 @@ async def delete_admission_form(user_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Student data deleted successfully"}
+
 
 
 @router.get("/dashboard_counts", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
