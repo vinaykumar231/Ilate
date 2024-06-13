@@ -64,6 +64,14 @@ def get_admin_or_teacher(user_id: int = Depends(get_user_id_from_token), db: Ses
         raise HTTPException(status_code=403, detail="You are not authorized to perform this action")
     return user
 
+def get_admin_or_parent(user_id: int = Depends(get_user_id_from_token), db: Session = Depends(get_db)) -> Optional[LmsUsers]:
+    user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.user_type not in ["parent", "admin"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to perform this action")
+    return user
+
 def get_admin_or_student(user_id: int = Depends(get_user_id_from_token), db: Session = Depends(get_db)):
     user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
     if user is None:

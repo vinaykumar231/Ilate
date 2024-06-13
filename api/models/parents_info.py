@@ -11,6 +11,9 @@ class Parent(Base):
     p_first_name = Column(String(255))
     p_middle_name = Column(String(255))
     p_last_name = Column(String(255))
+    p_user_id = Column(String(255))
+    p_password =Column(String(255))
+    user_type = Column(String(100))
     guardian = Column(String(255))
     primary_no = Column(String(255))
     secondary_no = Column(String(255))
@@ -18,3 +21,5 @@ class Parent(Base):
     secondary_email = Column(String(255))
 
     student = relationship("Student", back_populates="parent_info")
+
+

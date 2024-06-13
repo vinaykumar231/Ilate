@@ -297,6 +297,8 @@ def get_course_content_by_criteria(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
 ######
 @router.get("/courses_hierarchy/{course_id}", response_model=CourseCreateWithHierarchy, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
@@ -345,7 +347,17 @@ def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve course hierarchy: {str(e)}")
 
-
+@router.get("/courses_hierarchy", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+def get_all_courses_hierarchy(db: Session = Depends(get_db)):
+    try:
+        courses = db.query(Course).all()
+        all_courses_hierarchy = []
+        for course in courses:
+            course_hierarchy = get_course_hierarchy(course.id, db)
+            all_courses_hierarchy.append(course_hierarchy)
+        return all_courses_hierarchy
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve all courses hierarchy: {str(e)}")
 
 @router.delete("/courses_delete/{course_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def delete_course_with_hierarchy(course_id: int, db: Session = Depends(get_db)):
@@ -400,12 +412,21 @@ def create_course(course: CourseCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to create course")
 
 
+from sqlalchemy import distinct
+
+
 @router.get("/courses/", response_model=None)
 def read_all_courses(db: Session = Depends(get_db)):
     try:
-        return db.query(Course).all()
+        # Query distinct course names
+        unique_course_names = db.query(Course.name).distinct().all()
+        # Convert to a list
+        unique_names = [name[0] for name in unique_course_names]
+        return {"unique_courses": unique_names}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch courses")
+
+
 
 
 @router.get("/courses/{course_id}", response_model=None)

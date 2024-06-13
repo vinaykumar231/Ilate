@@ -24,6 +24,20 @@ def get_teacher(db: Session, user_id: int):
         return query.filter(Teacher.user_id == user_id).first()
     return query.all()
 
+def get_teacher1(db: Session, Teacher_id: int):
+    query = db.query(Teacher).options(
+        joinedload(Teacher.employee),
+        joinedload(Teacher.contact_information),
+        joinedload(Teacher.educations),
+        joinedload(Teacher.dependents),
+        joinedload(Teacher.emergency_contact),
+        joinedload(Teacher.skills),
+        joinedload(Teacher.languages_spoken)
+    )
+    if Teacher_id:
+        return query.filter(Teacher.Teacher_id == Teacher_id).first()
+    return query.all()
+
 def get_all_teacher( db: Session):
     return db.query(Teacher) \
         .options(joinedload(Teacher.employee),
@@ -150,7 +164,7 @@ def update_skill(db: Session, Teacher_id: int, skill_update: SkillUpdate):
     return db_skill
 
 
-@router.post("/teachers/", response_model=None)
+@router.post("/teachers/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def fill_teacher_data(
     teacher_data : TeacherCreate,
     employee: EmployeeCreate,
@@ -200,9 +214,13 @@ async def fill_teacher_data(
     db.add(db_languages_spoken)
     db.commit()
 
+    current_user.user_type = 'teacher'
+    current_user.is_formsubmited = True
+    db.add(current_user)
+    db.commit()
+
     return {"message": "Teacher all data has been submitted successfully"}
 
-from fastapi import Depends, HTTPException
 
 @router.get("/teachers/get_all", response_model=None, dependencies=[Depends(JWTBearer(get_admin))])
 def get_all_teachers(db: Session = Depends(get_db)):
@@ -211,13 +229,75 @@ def get_all_teachers(db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Teachers not found")
     return teachers
 
-
-@router.get("/teachers/{ user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
-def get_Teacher_user_profile( user_id: int, db: Session = Depends(get_db)):
+@router.get("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
+def get_Teacher_user_profile(user_id: int, db: Session = Depends(get_db)):
     teacher = get_teacher(db, user_id)
+    
     if teacher is None:
         raise HTTPException(status_code=404, detail="Teacher not found")
-    return teacher
+
+    # Get the first related object or None if the relationship is empty
+    contact_info = teacher.contact_information[0] if teacher.contact_information else None
+    dependent = teacher.dependents[0] if teacher.dependents else None
+    education = teacher.educations[0] if teacher.educations else None
+    emergency_contact = teacher.emergency_contact[0] if teacher.emergency_contact else None
+    language_spoken = teacher.languages_spoken[0] if teacher.languages_spoken else None
+    skill = teacher.skills[0] if teacher.skills else None
+    
+    teacher_data = {
+        "Teacher_id": teacher.Teacher_id,
+        "user_id": teacher.user_id,
+        "name": teacher.name,
+        "email": teacher.email,
+        "contact_info": {
+            "primary_number": contact_info.primary_number if contact_info else None,
+            "secondary_number": contact_info.secondary_number if contact_info else None,
+            "primary_email_id": contact_info.primary_email_id if contact_info else None,
+            "secondary_email_id": contact_info.secondary_email_id if contact_info else None,
+            "current_address": contact_info.current_address if contact_info else None,
+            "permanent_address": contact_info.permanent_address if contact_info else None
+        },
+        "dependent": {
+            "id": dependent.id if dependent else None,
+            "dependent_name": dependent.dependent_name if dependent else None,
+            "relation": dependent.realtion if dependent else None,
+            "date_of_birth": dependent.date_of_birth if dependent else None
+        },
+        "education": {
+            "id": education.id if education else None,
+            "education_level": education.education_level if education else None,
+            "institution": education.institution if education else None,
+            "specialization": education.specialization if education else None,
+            "field_of_study": education.field_of_study if education else None,
+            "year_of_passing": education.year_of_passing if education else None,
+            "percentage": education.percentage if education else None
+        },
+        "emergency_contact": {
+            "id": emergency_contact.id if emergency_contact else None,
+            "emergency_contact_name": emergency_contact.emergency_contact_name if emergency_contact else None,
+            "relation": emergency_contact.relation if emergency_contact else None,
+            "emergency_contact_number": emergency_contact.emergency_contact_number if emergency_contact else None
+        },
+        "languages_spoken": {
+            "id": language_spoken.id if language_spoken else None,
+            "languages": language_spoken.languages if language_spoken else None
+        },
+        "skill": {
+            "id": skill.id if skill else None,
+            "skill": skill.skill if skill else None,
+            "certification": skill.certification if skill else None,
+            "license": skill.license if skill else None
+        }
+    }
+    
+    return teacher_data
+
+# @router.get("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
+# def get_Teacher_user_profile( user_id: int, db: Session = Depends(get_db)):
+#     teacher = get_teacher(db, user_id)
+#     if teacher is None:
+#         raise HTTPException(status_code=404, detail="Teacher not found")
+#     return teacher
 
 def increment_content_file_count(db: Session, teacher_id: int):
     teacher = db.query(Teacher).filter(Teacher.Teacher_id == teacher_id).first()
@@ -232,7 +312,7 @@ def decrement_content_file_count(db: Session, teacher_id: int):
             teacher.content_file_count -= 1
             db.commit()
 
-@router.put("/teachers/update/{Teacher_id}", response_model=None)
+@router.put("/teachers/update/{Teacher_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def update_teacher_profile(
         Teacher_id: int,
         teacher_data: TeacherUpdate = None,
@@ -246,7 +326,7 @@ async def update_teacher_profile(
         db: Session = Depends(get_db),
         current_user: LmsUsers = Depends(get_current_user)
 ):
-    existing_teacher = get_teacher(db, Teacher_id)
+    existing_teacher = get_teacher1(db, Teacher_id)
     if not existing_teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
@@ -274,38 +354,40 @@ async def update_teacher_profile(
     if languages_spoken:
         update_teacher_LanguagesSpoken(db, Teacher_id, languages_spoken)
 
-    # Increment content file count if new file is uploaded
-    if teacher_data and teacher_data.content_file:
-        increment_content_file_count(db, Teacher_id)
-
-    # Decrement content file count if file is removed
-    if teacher_data and teacher_data.remove_content_file:
-        decrement_content_file_count(db, Teacher_id)
 
     return {"message": "Teacher data has been updated successfully"}
 
 
-@router.delete("/teachers/{Teacher_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
-async def delete_teacher(Teacher_id: int, db: Session = Depends(get_db)):
+@router.delete("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+async def delete_teacher(user_id: int, db: Session = Depends(get_db)):
     # Check if the teacher exists
-    existing_teacher = db.query(Teacher).filter(Teacher.Teacher_id == Teacher_id).first()
+    existing_teacher = db.query(Teacher).filter(Teacher.user_id == user_id).first()
     if not existing_teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
     # Delete associated data from other tables
-    db.query(Employee).filter(Employee.Teacher_id == Teacher_id).delete()
-    db.query(TeacherContact).filter(TeacherContact.Teacher_id == Teacher_id).delete()
-    db.query(Education).filter(Education.Teacher_id == Teacher_id).delete()
-    db.query(Dependents).filter(Dependents.Teacher_id == Teacher_id).delete()
-    db.query(EmergencyContact).filter(EmergencyContact.Teacher_id == Teacher_id).delete()
-    db.query(LanguagesSpoken).filter(LanguagesSpoken.Teacher_id == Teacher_id).delete()
-    db.query(Skill).filter(Skill.Teacher_id == Teacher_id).delete()
+    db.query(Employee).filter(Employee.Teacher_id == existing_teacher.Teacher_id).delete()
+    db.query(TeacherContact).filter(TeacherContact.Teacher_id == existing_teacher.Teacher_id).delete()
+    db.query(Education).filter(Education.Teacher_id == existing_teacher.Teacher_id).delete()
+    db.query(Dependents).filter(Dependents.Teacher_id == existing_teacher.Teacher_id).delete()
+    db.query(EmergencyContact).filter(EmergencyContact.Teacher_id == existing_teacher.Teacher_id).delete()
+    db.query(LanguagesSpoken).filter(LanguagesSpoken.Teacher_id == existing_teacher.Teacher_id).delete()
+    db.query(Skill).filter(Skill.Teacher_id == existing_teacher.Teacher_id).delete()
 
     # Delete the teacher
     db.delete(existing_teacher)
     db.commit()
+    lms_user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
+    if not lms_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Modify user_type and is_formsubmited attributes
+    lms_user.user_type = 'teacher'
+    lms_user.is_formsubmited = False
+    db.commit()
 
     return {"message": "Teacher and associated data deleted successfully"}
+
 
 
 @router.get("/teacher/dashboard_counts", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])

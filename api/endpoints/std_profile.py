@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
-from db.session import get_db
+from db.session import get_db, SessionLocal
 from ..models import Student, ContactInformation, PreEducation, Parent, LmsUsers, Inquiry, DemoFormFill, CourseDetails,Course, Standard, module,Subject, Module, Payment
 from ..schemas import (StudentContactCreate, PreEducationCreate, ParentCreate,  StudentUpdate,
                        StudentContactUpdate, PreEducationUpdate, ParentInfoUpdate, CourseDetailsCreate, CourseDetailsUpdate)
@@ -17,6 +17,13 @@ import uuid
 import shutil
 from datetime import date
 import pytz
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from dotenv import load_dotenv
+import bcrypt
+from pydantic import EmailStr, BaseModel
+
 
 router = APIRouter()
 
@@ -182,8 +189,42 @@ def save_upload_file(upload_file: Optional[UploadFile]) -> Optional[str]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
 
-#########################################################################################################################
 
+######################################################################################################################
+                # For sending Email
+#######################################################################################################################
+
+async def send_email(subject, email_to, body):
+    # Set up the SMTP server
+    smtp_server = 'smtp.gmail.com'  # Corrected SMTP server address for Gmail
+    smtp_port = 587  # Corrected SMTP port for TLS encryption
+    smtp_username = 'vinaykumar900417@gmail.com'  # Update with your email
+    smtp_password = 'fgyc cjhy lfmb fddk'  # Update with your email password
+
+    try:
+        # Create a connection to the SMTP server
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Start TLS encryption
+        server.login(smtp_username, smtp_password)  # Login to the SMTP server
+
+        # Construct the email message
+        msg = MIMEMultipart()
+        msg['From'] = smtp_username
+        msg['To'] = email_to
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'html'))
+
+        # Send the email
+        server.sendmail(smtp_username, email_to, msg.as_string())
+
+        # Close the connection to the SMTP server
+        server.quit()
+
+    except Exception as e:
+        # Handle any exceptions, such as authentication failure
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    
+########################################################################################################
 
 @router.post("/admission/", response_model=None)
 async def fill_admission_form(
@@ -230,9 +271,12 @@ async def fill_admission_form(
     # Handle file uploads
     id_proof_path = save_upload_file(id_proof)
     address_proof_path = save_upload_file(address_proof)
-
+    #pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     try:
+        parent_user_id = p_primary_email
+        parent_password = p_first_name + "@123"
+        hashed_password = bcrypt.hashpw((parent_password).encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         # Create student record
         db_student = Student(
             user_id=current_user.user_id,
@@ -282,12 +326,15 @@ async def fill_admission_form(
             p_last_name=p_last_name,
             guardian=p_guardian,
             primary_no=p_primary_no,
-            #secondary_no=s_secondary_no,
+            p_user_id=parent_user_id,
+            p_password=hashed_password,
             primary_email=p_primary_email,
-            #secondary_email=s_secondary_email,
             student_id=db_student.id
         )
         db.add(db_parent_info)
+        db_parent_info.user_type = 'parent'
+        db.commit()
+
 
         # Create course details record
         db_course_details = CourseDetails(
@@ -307,6 +354,28 @@ async def fill_admission_form(
 
         db.commit()
 
+        # Generate unique URL for parent
+        #unique_id = str(uuid.uuid4())
+        #verification_url = f"http://192.168.29.82:8000/verify_parent/{unique_id}"
+
+        # Send email to parent
+        email_body = f"""
+        <p>Dear {p_first_name},</p>
+        <p>Your child, student ID :{db_student.id} {first_name} {last_name}, has been successfully admitted. Here are your login credentials:</p>
+        <p>User ID: {parent_user_id}</p>
+        <p>Password: {parent_password}</p>
+        <p>Please use these credentials to log in for further updates.</p>
+        <br>
+        <p>Best regards,</p>
+        <p>Vinay Kumar</p>
+        <p>MaitriAI</p>
+        <p>900417181</p>
+        """
+        await send_email(
+            subject="Parent Account credentials",
+            email_to=p_primary_email,
+            body=email_body
+        )
         return {"message": "Admission form has been submitted successfully"}
 
     except Exception as e:
@@ -618,8 +687,6 @@ async def update_admission_form(
     return {"message": "Admission form has been updated successfully"}
 
 
-
-
 @router.delete("/admission/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_admission_form(user_id: int, db: Session = Depends(get_db)):
     existing_form = db.query(Student).filter(Student.user_id == user_id).first()
@@ -655,7 +722,6 @@ async def delete_admission_form(user_id: int, db: Session = Depends(get_db)):
     return {"message": "Student data deleted successfully"}
 
 
-
 @router.get("/dashboard_counts", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def get_dashboard_counts(db: Session = Depends(get_db)):
     total_users = db.query(LmsUsers).count()
@@ -671,9 +737,5 @@ async def get_dashboard_counts(db: Session = Depends(get_db)):
         "inquiry_count": total_inquiries,
         "demo_count": total_demo
     }
-
-
-
-
 
 
