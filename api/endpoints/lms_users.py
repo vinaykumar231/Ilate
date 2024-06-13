@@ -6,6 +6,8 @@ from auth.auth_bearer import JWTBearer, get_user_id_from_token, is_admin, get_ad
 from db.session import get_db, api_response
 from ..models.user import LmsUsers
 from ..schemas import LoginInput, ChangePassword, UserCreate, UpdateUser, UserType
+import bcrypt
+from .std_profile import send_email
 
 router = APIRouter()
 
@@ -28,6 +30,7 @@ async def lms_login(credential: LoginInput):
         raise
     except Exception as e:
         return HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.post("/insert/lms_user")
@@ -130,7 +133,100 @@ async def lms_user_update(user_data: UpdateUser, user_id: int,
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
+#######################################################################################
+@router.put("/change_password/{user_id}")
+async def change_password(current_password: str, new_password: str, confirm_new_password: str, current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        if new_password != confirm_new_password:
+            raise HTTPException(status_code=400, detail="New passwords do not match")
 
+        user = db.query(LmsUsers).filter(LmsUsers.user_id == current_user.user_id, LmsUsers.is_deleted == False).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with ID {current_user.user_id} not found")
+
+        if not bcrypt.checkpw(current_password.encode('utf-8'), user.user_password.encode('utf-8')):
+            raise HTTPException(status_code=400, detail="Wrong current password")
+
+        if not user_ops.validate_password(new_password):
+            raise HTTPException(status_code=400, detail="Invalid new password")
+
+        hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+        user.user_password = hashed_new_password
+
+        db.commit()
+        contact = "900-417-3181"
+        email_contact = "vinay@example.com"
+
+        reset_email_body = f"""
+        <p>Dear User,</p>
+        <p>Your password has been successfully changed.</p>
+        <p>If you did not request this change, please contact support at {contact} or email us at {email_contact}.</p>
+        <p>Thank you!</p>
+        <br><br>
+        <p>Best regards,</p>
+        <p>Vinay Kumar</p>
+        <p>MaitriAI</p>
+        <p>900417181</p>
+        """
+        await send_email(
+            subject="Password Change Confirmation",
+            email_to=user.user_email,
+            body=reset_email_body
+        )
+        return {"message": "Password changed successfully"}
+
+    except HTTPException as e:
+        raise e
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@router.put("/reset_password")
+async def forgot_password(email: str, new_password: str, confirm_new_password: str, db: Session = Depends(get_db)):
+    try:
+        if new_password != confirm_new_password:
+            raise HTTPException(status_code=400, detail="Passwords do not match")
+
+        user = db.query(LmsUsers).filter(LmsUsers.user_email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+
+        hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+        user.user_password = hashed_new_password
+
+        db.commit()
+
+        # Send email for password reset
+        contact = "900-417-3181"
+        email_contact = "vinay@example.com"
+
+        reset_email_body = f"""
+        <p>Dear User,</p>
+        <p>Your password has been successfully changed.</p>
+        <p>If you did not request this change, please contact support at {contact} or email us at {email_contact}.</p>
+        <p>Thank you!</p>
+        <br><br>
+        <p>Best regards,</p>
+        <p>Vinay Kumar</p>
+        <p>MaitriAI</p>
+        <p>900417181</p>
+        """
+        await send_email(
+            subject="Password Reset Request",
+            email_to=email,
+            body=reset_email_body
+        )
+
+        return {"message": "Password reset successfully"}
+
+    except HTTPException as e:
+        raise e
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+##########################################################################################
 
 
 # @router.get("/get_my_profile", dependencies=[Depends(JWTBearer())])

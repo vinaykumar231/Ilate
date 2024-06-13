@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, status
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db.session import get_db
@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from ..schemas import  MailCreate
 from datetime import datetime
 import pytz
+import re
 
 
 router = APIRouter()
@@ -15,8 +16,31 @@ router = APIRouter()
                         #mail
 # ------------------------------------------------------------------------------------------------------------------
 
+EMAIL_REGEX_PATTERN = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+
+# Function to validate email address format
+def is_valid_email(email: str) -> bool:
+    return re.match(EMAIL_REGEX_PATTERN, email) is not None
+
+@staticmethod
+def validate_phone_number(phone):
+        phone_pattern = r"^\d{10}$"
+        return re.match(phone_pattern, phone)
+
 @router.post("/mail/", response_model=None)
 def create_mail(mail: MailCreate, db: Session = Depends(get_db)):
+    # Validate email address
+    if not is_valid_email(mail.email):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid email address",
+        )
+    if not validate_phone_number(mail.phone):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid phone number",
+        )
+    # Proceed with creating mail
     db_mail = Mail(**mail.dict())
     utc_now = pytz.utc.localize(datetime.utcnow())
     ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
