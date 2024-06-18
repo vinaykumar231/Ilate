@@ -134,6 +134,12 @@ async def lms_user_update(user_data: UpdateUser, user_id: int,
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 #######################################################################################
+
+@staticmethod
+def validate_password(password):
+        return len(password) >= 8
+
+
 @router.put("/change_password/{user_id}")
 async def change_password(current_password: str, new_password: str, confirm_new_password: str, current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
@@ -149,7 +155,7 @@ async def change_password(current_password: str, new_password: str, confirm_new_
 
         if not user_ops.validate_password(new_password):
             raise HTTPException(status_code=400, detail="Invalid new password")
-
+        
         hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
         user.user_password = hashed_new_password
 
@@ -182,6 +188,7 @@ async def change_password(current_password: str, new_password: str, confirm_new_
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
+
 @router.put("/reset_password")
 async def forgot_password(email: str, new_password: str, confirm_new_password: str, db: Session = Depends(get_db)):
     try:
@@ -191,6 +198,9 @@ async def forgot_password(email: str, new_password: str, confirm_new_password: s
         user = db.query(LmsUsers).filter(LmsUsers.user_email == email).first()
         if not user:
             raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+        
+        if not validate_password(new_password):
+            raise HTTPException(status_code=400, detail="Invalid new password")
 
         hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
         user.user_password = hashed_new_password

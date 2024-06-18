@@ -472,6 +472,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
 
     student_data = {
         "user_id": student.user_id,
+        "student_id": student.id,
         "first_name": student.first_name,
         "middle_name": student.middle_name,
         "last_name": student.last_name,
@@ -684,7 +685,55 @@ async def update_admission_form(
             existing_course_details.course = course
 
     db.commit()
-    return {"message": "Admission form has been updated successfully"}
+
+    
+    updated_data = {
+        "student": {
+            "first_name": existing_student.first_name,
+            "middle_name": existing_student.middle_name,
+            "last_name": existing_student.last_name,
+            "date_of_birth": existing_student.date_of_birth,
+            "gender": existing_student.gender,
+            "nationality": existing_student.nationality,
+            "referral": existing_student.referral,
+            "date_of_joining": existing_student.date_of_joining,
+            "date_of_completion": existing_student.date_of_completion,
+            "id_proof": existing_student.id_proof,
+            "address_proof": existing_student.Address_proof,
+        },
+        "contact_information": {
+            "primary_no": existing_contact_info.primary_no if existing_contact_info else None,
+            "secondary_no": existing_contact_info.secondary_no if existing_contact_info else None,
+            "primary_email": existing_contact_info.primary_email if existing_contact_info else None,
+            "secondary_email": existing_contact_info.secondary_email if existing_contact_info else None,
+            "current_address": existing_contact_info.current_address if existing_contact_info else None,
+            "permanent_address": existing_contact_info.permanent_address if existing_contact_info else None,
+        },
+        "pre_education": {
+            "student_class": existing_pre_education.student_class if existing_pre_education else None,
+            "school": existing_pre_education.school if existing_pre_education else None,
+            "year_of_passing": existing_pre_education.year_of_passing if existing_pre_education else None,
+            "percentage": existing_pre_education.percentage if existing_pre_education else None,
+        },
+        "parent_information": {
+            "p_first_name": existing_parent_info.p_first_name if existing_parent_info else None,
+            "p_middle_name": existing_parent_info.p_middle_name if existing_parent_info else None,
+            "p_last_name": existing_parent_info.p_last_name if existing_parent_info else None,
+            "guardian": existing_parent_info.guardian if existing_parent_info else None,
+            "primary_no": existing_parent_info.primary_no if existing_parent_info else None,
+            "secondary_no": existing_parent_info.secondary_no if existing_parent_info else None,
+            "primary_email": existing_parent_info.primary_email if existing_parent_info else None,
+            "secondary_email": existing_parent_info.secondary_email if existing_parent_info else None,
+        },
+        "course_details":{
+            "subject":existing_course_details.subject if existing_course_details else None,
+            "standard":existing_course_details.standard if existing_course_details else None,
+            "module":existing_course_details.module if existing_course_details else None,
+            "course":existing_course_details.course if existing_course_details else None,
+            
+        }
+    }
+    return updated_data
 
 
 @router.delete("/admission/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])

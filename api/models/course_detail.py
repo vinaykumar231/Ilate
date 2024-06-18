@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 from db.base import Base
 from .Students import Student 
@@ -16,6 +16,8 @@ class CourseDetails(Base):
     standards = Column(Integer, ForeignKey("standards.id"))
     modules = Column(Integer, ForeignKey("modules.id"))
     students = Column(Integer, ForeignKey("students.id"))
+    user_id = Column(Integer)
+    is_active_course = Column(Boolean, server_default='0', nullable=False)
 
     # Define relationships
     student = relationship("Student", back_populates="course_details")
