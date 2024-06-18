@@ -76,7 +76,7 @@ async def create_fee(fee_data: FeeCreate, db: Session = Depends(get_db)):
     db.refresh(fee)
     return fee
 
-@router.get("/fees/bycriteria", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+@router.get("/fees/bycriteria", response_model=None)
 async def read_fees(
     course_id: int = None, standard_id: int = None, year: int = None, subject_id: int = None,
     module_id: int = None, batch_id: int = None, db: Session = Depends(get_db)

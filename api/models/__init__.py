@@ -41,4 +41,5 @@ from .teacher_emergency_contact import EmergencyContact
 from .teacher_depends import Dependents
 from .employee_master_table import Employee
 from .mail import Mail
+from .announcement import Announcement
 

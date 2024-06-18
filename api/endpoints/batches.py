@@ -20,7 +20,7 @@ async def create_batch(batch_data: BatchCreate, db: Session = Depends(get_db)):
     return batch
 
 # Get all batches
-@router.get("/batches/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+@router.get("/batches/", response_model=None)
 async def read_all_batches(db: Session = Depends(get_db)):
     return db.query(Batch).all()
 

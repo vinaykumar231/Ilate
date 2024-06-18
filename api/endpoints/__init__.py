@@ -35,5 +35,4 @@ from .Test import router as tests_router
 
 from .teacher_profile import router as teachers_Data_router
 from .mail import router as mail_router
-
-
+from .announcement import router as announcement_router

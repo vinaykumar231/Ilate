@@ -410,12 +410,18 @@ def create_course(course: CourseCreate, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to create course")
-
+    
+@router.get("/courses/", response_model=None)
+def read_all_courses(db: Session = Depends(get_db)):
+    try:
+        return db.query(Course).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch courses")
 
 from sqlalchemy import distinct
 
 
-@router.get("/courses/", response_model=None)
+@router.get("/courses/unique", response_model=None)
 def read_all_courses(db: Session = Depends(get_db)):
     try:
         # Query distinct course names
@@ -425,8 +431,6 @@ def read_all_courses(db: Session = Depends(get_db)):
         return {"unique_courses": unique_names}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch courses")
-
-
 
 
 @router.get("/courses/{course_id}", response_model=None)
