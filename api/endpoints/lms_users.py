@@ -7,7 +7,7 @@ from db.session import get_db, api_response
 from ..models.user import LmsUsers
 from ..schemas import LoginInput, ChangePassword, UserCreate, UpdateUser, UserType
 import bcrypt
-from .std_profile import send_email
+from .Email_config import send_email
 
 router = APIRouter()
 
@@ -29,7 +29,7 @@ async def lms_login(credential: LoginInput):
     except HTTPException as e:
         raise
     except Exception as e:
-        return HTTPException(status_code=500, detail=str(e))
+        return HTTPException(status_code=500, detail=f"login failed: {str(e)}")
 
 
 

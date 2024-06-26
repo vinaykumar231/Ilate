@@ -35,7 +35,7 @@ def get_standard_id(standard_name: str, db: Session):
         raise HTTPException(status_code=404, detail="Standard not found")
     return standard.id
 
-base_url_path = "http://192.168.29.82:8001"
+base_url_path = "http://192.168.0.123:8001"
 
 
 
@@ -89,7 +89,7 @@ def create_video(
         return new_video
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to insert demo video: {str(e)}")
 
 # @router.get("/videos/", response_model=None)
 # def get_all_videos(db: Session = Depends(get_db)):
@@ -129,7 +129,7 @@ def get_videos_by_criteria(
     try:
         result = {}
         base_url_path = "static/uploads"
-        base_url_http_path = "http://192.168.29.82:8001/static/uploads"
+        base_url_http_path = "http://192.168.0.123:8001/static/uploads"
         query = db.query(Video)
 
         if not course_name:
@@ -167,7 +167,7 @@ def get_videos_by_criteria(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get demo video: {str(e)}")
 
 ##############################################################################
 @router.get("/videos/", response_model=None, dependencies=[Depends(JWTBearer())])
@@ -177,7 +177,7 @@ def get_videos(course_name: str, standard_name: str, subject_name: str, db: Sess
         subject_id = get_subject_id(subject_name, db)
         standard_id = get_standard_id(standard_name, db)
     except HTTPException as e:
-        raise e
+        raise (f"Failed to get demo video: {str(e)}")
 
     videos = db.query(Video).filter(
         Video.course_id == course_id,
@@ -227,7 +227,7 @@ def get_video(video_id: int, request: Request, db: Session = Depends(get_db)):
 
         return video_data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get demo video: {str(e)}")
 
 @router.put("/videos/{video_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 def update_video(
@@ -266,7 +266,7 @@ def update_video(
     
     except Exception as e:
         # If any error occurs, raise HTTPException with status code 500
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update demo video: {str(e)}")
 
     
 @router.delete("/videos/{video_id}", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
@@ -296,4 +296,4 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
             return {"message": "Video deleted successfully, but file not found"}
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete demo video: {str(e)}")

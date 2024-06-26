@@ -82,7 +82,7 @@ async def create_question(
 
         return {"message": "Question has been created successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to create question: {str(e)}")
 
 # Get Question by ID
 base_url_path = "http://192.168.29.40:8000"
@@ -127,7 +127,7 @@ async def get_question(
         return response_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to fetch question: {str(e)}")
 
 def prepend_base_url(image_path):
     if image_path:
@@ -180,7 +180,7 @@ async def get_questions_by_range(
         return response_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to fetch question: {str(e)}")
 
 
 # Update Question
@@ -251,7 +251,7 @@ async def update_question(
 
         return {"message": "Question has been updated successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update question: {str(e)}")
 
 
 # Delete Question
@@ -274,4 +274,4 @@ async def delete_question(
 
         return {"message": "Question has been deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete question: {str(e)}")

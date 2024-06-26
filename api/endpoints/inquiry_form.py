@@ -23,18 +23,24 @@ async def create_inquiry(inquiry: InquiryCreate, db: Session = Depends(get_db)):
         db.refresh(db_inquiry)
         return db_inquiry
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to insert inquire: {str(e)}")
     
 @router.get("/get_inquiries/", response_model= None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def get_inquiries(db: Session = Depends(get_db)):
-    return db.query(Inquiry).all()
+    try:
+        return db.query(Inquiry).all()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Failed to fetch inquire: {str(e)}")
 
 @router.get("/inquiries/{inquiry_id}", response_model=None)
 async def get_inquiry(inquiry_id: int, db: Session = Depends(get_db)):
-    inquiry = db.query(Inquiry).filter(Inquiry.id == inquiry_id).first()
-    if not inquiry:
-        raise HTTPException(status_code=404, detail="Inquiry not found")
-    return inquiry
+    try:
+        inquiry = db.query(Inquiry).filter(Inquiry.id == inquiry_id).first()
+        if not inquiry:
+            raise HTTPException(status_code=404, detail="Inquiry not found")
+        return inquiry
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch inquire: {str(e)}")
 
 @router.put("/inquiries/{inquiry_id}", response_model=None)
 async def update_inquiry(inquiry_id: int, inquiry_update: InquiryUpdate, db: Session = Depends(get_db)):
@@ -48,7 +54,7 @@ async def update_inquiry(inquiry_id: int, inquiry_update: InquiryUpdate, db: Ses
         db.refresh(inquiry)
         return inquiry
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update inquire: {str(e)}")
     
 @router.delete("/inquiries/{inquiry_id}", response_model=None)
 async def delete_inquiry(inquiry_id: int, db: Session = Depends(get_db)):
@@ -60,6 +66,6 @@ async def delete_inquiry(inquiry_id: int, db: Session = Depends(get_db)):
         db.commit()
         return {"message": "Inquiry deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete inquire: {str(e)}")
 
 

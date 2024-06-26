@@ -37,6 +37,8 @@ class LmsUsers(Base):
 
     teacher = relationship("Teacher", back_populates="user")
 
+    parent_info = relationship("Parent", back_populates="user")
+
     # #######################################################################################################################
     @staticmethod
     def validate_email(email):

@@ -31,3 +31,5 @@ class Teacher(Base):
     employee = relationship('Employee', back_populates='teacher')
 
     user = relationship("LmsUsers", back_populates="teacher")
+
+    courses_by = relationship("TeacherCourse", back_populates="teacher_Assign")

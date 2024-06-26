@@ -7,6 +7,7 @@ from ..schemas import ( ContactInformationCreate, ContactInformationUpdate,Educa
                         LanguagesSpokenCreate, LanguagesSpokenUpdate,EmergencyContactCreate, EmergencyContactUpdate,
                        DependentsCreate, DependentsUpdate, EmployeeCreate,EmployeeUpdate, TeacherCreate, TeacherUpdate)
 from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_or_teacher
+from typing import Optional
 
 router = APIRouter()
 
@@ -177,120 +178,129 @@ async def fill_teacher_data(
     db: Session = Depends(get_db),
     current_user: LmsUsers = Depends(get_current_user)
 ):
-    existing_form = db.query(Teacher).filter(Teacher.user_id == current_user.user_id).first()
-    if existing_form:
-        raise HTTPException(status_code=400, detail="Teacher data has already been submitted")
+    try:
+        existing_form = db.query(Teacher).filter(Teacher.user_id == current_user.user_id).first()
+        if existing_form:
+            raise HTTPException(status_code=400, detail="Teacher data has already been submitted")
 
-    db_teacher = Teacher(**teacher_data.dict(),user_id=current_user.user_id)
-    db.add(db_teacher)
-    db.commit()
-    db.refresh(db_teacher)
+        db_teacher = Teacher(**teacher_data.dict(),user_id=current_user.user_id)
+        db.add(db_teacher)
+        db.commit()
+        db.refresh(db_teacher)
 
-    db_employee = Employee(**employee.dict(), Teacher_id=db_teacher.Teacher_id)
-    db.add(db_employee)
-    db.commit()
+        db_employee = Employee(**employee.dict(), Teacher_id=db_teacher.Teacher_id)
+        db.add(db_employee)
+        db.commit()
 
-    db_teacher_contact = TeacherContact(**teacher_contact_info.dict(), Teacher_id=db_teacher.Teacher_id)
-    db.add(db_teacher_contact)
-    db.commit()
+        db_teacher_contact = TeacherContact(**teacher_contact_info.dict(), Teacher_id=db_teacher.Teacher_id)
+        db.add(db_teacher_contact)
+        db.commit()
 
-    db_dependents = Dependents(**dependent.dict(), Teacher_id=db_teacher.Teacher_id)
-    db.add(db_dependents)
-    db.commit()
+        db_dependents = Dependents(**dependent.dict(), Teacher_id=db_teacher.Teacher_id)
+        db.add(db_dependents)
+        db.commit()
 
-    db_education = Education(**education.dict(), Teacher_id=db_teacher.Teacher_id)
-    db.add(db_education)
-    db.commit()
+        db_education = Education(**education.dict(), Teacher_id=db_teacher.Teacher_id)
+        db.add(db_education)
+        db.commit()
 
-    db_skill = Skill(**skill.dict(), Teacher_id=db_teacher.Teacher_id)
-    db.add(db_skill)
-    db.commit()
+        db_skill = Skill(**skill.dict(), Teacher_id=db_teacher.Teacher_id)
+        db.add(db_skill)
+        db.commit()
 
-    db_emergency_contact = EmergencyContact(**emergency_contact.dict(), Teacher_id=db_teacher.Teacher_id)
-    db.add(db_emergency_contact)
-    db.commit()
+        db_emergency_contact = EmergencyContact(**emergency_contact.dict(), Teacher_id=db_teacher.Teacher_id)
+        db.add(db_emergency_contact)
+        db.commit()
 
-    db_languages_spoken = LanguagesSpoken(**languages_spoken.dict(), Teacher_id=db_teacher.Teacher_id)
-    db.add(db_languages_spoken)
-    db.commit()
+        db_languages_spoken = LanguagesSpoken(**languages_spoken.dict(), Teacher_id=db_teacher.Teacher_id)
+        db.add(db_languages_spoken)
+        db.commit()
 
-    current_user.user_type = 'teacher'
-    current_user.is_formsubmited = True
-    db.add(current_user)
-    db.commit()
+        current_user.user_type = 'teacher'
+        current_user.is_formsubmited = True
+        db.add(current_user)
+        db.commit()
 
-    return {"message": "Teacher all data has been submitted successfully"}
+        return {"message": "Teacher all data has been submitted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create teacher details: {str(e)}")
 
 
 @router.get("/teachers/get_all", response_model=None, dependencies=[Depends(JWTBearer(get_admin))])
 def get_all_teachers(db: Session = Depends(get_db)):
-    teachers = get_all_teacher(db)
-    if not teachers:
-        raise HTTPException(status_code=404, detail="Teachers not found")
-    return teachers
+    try:
+        teachers = get_all_teacher(db)
+        if not teachers:
+            raise HTTPException(status_code=404, detail="Teachers not found")
+        return teachers
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch teacher details: {str(e)}")
 
 @router.get("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 def get_Teacher_user_profile(user_id: int, db: Session = Depends(get_db)):
-    teacher = get_teacher(db, user_id)
-    
-    if teacher is None:
-        raise HTTPException(status_code=404, detail="Teacher not found")
+    try:
+        teacher = get_teacher(db, user_id)
+        
+        if teacher is None:
+            raise HTTPException(status_code=404, detail="Teacher not found")
 
-    # Get the first related object or None if the relationship is empty
-    contact_info = teacher.contact_information[0] if teacher.contact_information else None
-    dependent = teacher.dependents[0] if teacher.dependents else None
-    education = teacher.educations[0] if teacher.educations else None
-    emergency_contact = teacher.emergency_contact[0] if teacher.emergency_contact else None
-    language_spoken = teacher.languages_spoken[0] if teacher.languages_spoken else None
-    skill = teacher.skills[0] if teacher.skills else None
-    
-    teacher_data = {
-        "Teacher_id": teacher.Teacher_id,
-        "user_id": teacher.user_id,
-        "name": teacher.name,
-        "email": teacher.email,
-        "contact_info": {
-            "primary_number": contact_info.primary_number if contact_info else None,
-            "secondary_number": contact_info.secondary_number if contact_info else None,
-            "primary_email_id": contact_info.primary_email_id if contact_info else None,
-            "secondary_email_id": contact_info.secondary_email_id if contact_info else None,
-            "current_address": contact_info.current_address if contact_info else None,
-            "permanent_address": contact_info.permanent_address if contact_info else None
-        },
-        "dependent": {
-            "id": dependent.id if dependent else None,
-            "dependent_name": dependent.dependent_name if dependent else None,
-            "relation": dependent.realtion if dependent else None,
-            "date_of_birth": dependent.date_of_birth if dependent else None
-        },
-        "education": {
-            "id": education.id if education else None,
-            "education_level": education.education_level if education else None,
-            "institution": education.institution if education else None,
-            "specialization": education.specialization if education else None,
-            "field_of_study": education.field_of_study if education else None,
-            "year_of_passing": education.year_of_passing if education else None,
-            "percentage": education.percentage if education else None
-        },
-        "emergency_contact": {
-            "id": emergency_contact.id if emergency_contact else None,
-            "emergency_contact_name": emergency_contact.emergency_contact_name if emergency_contact else None,
-            "relation": emergency_contact.relation if emergency_contact else None,
-            "emergency_contact_number": emergency_contact.emergency_contact_number if emergency_contact else None
-        },
-        "languages_spoken": {
-            "id": language_spoken.id if language_spoken else None,
-            "languages": language_spoken.languages if language_spoken else None
-        },
-        "skill": {
-            "id": skill.id if skill else None,
-            "skill": skill.skill if skill else None,
-            "certification": skill.certification if skill else None,
-            "license": skill.license if skill else None
+        # Get the first related object or None if the relationship is empty
+        contact_info = teacher.contact_information[0] if teacher.contact_information else None
+        dependent = teacher.dependents[0] if teacher.dependents else None
+        education = teacher.educations[0] if teacher.educations else None
+        emergency_contact = teacher.emergency_contact[0] if teacher.emergency_contact else None
+        language_spoken = teacher.languages_spoken[0] if teacher.languages_spoken else None
+        skill = teacher.skills[0] if teacher.skills else None
+        
+        teacher_data = {
+            "Teacher_id": teacher.Teacher_id,
+            "user_id": teacher.user_id,
+            "name": teacher.name,
+            "email": teacher.email,
+            "contact_info": {
+                "primary_number": contact_info.primary_number if contact_info else None,
+                "secondary_number": contact_info.secondary_number if contact_info else None,
+                "primary_email_id": contact_info.primary_email_id if contact_info else None,
+                "secondary_email_id": contact_info.secondary_email_id if contact_info else None,
+                "current_address": contact_info.current_address if contact_info else None,
+                "permanent_address": contact_info.permanent_address if contact_info else None
+            },
+            "dependent": {
+                "id": dependent.id if dependent else None,
+                "dependent_name": dependent.dependent_name if dependent else None,
+                "relation": dependent.realtion if dependent else None,
+                "date_of_birth": dependent.date_of_birth if dependent else None
+            },
+            "education": {
+                "id": education.id if education else None,
+                "education_level": education.education_level if education else None,
+                "institution": education.institution if education else None,
+                "specialization": education.specialization if education else None,
+                "field_of_study": education.field_of_study if education else None,
+                "year_of_passing": education.year_of_passing if education else None,
+                "percentage": education.percentage if education else None
+            },
+            "emergency_contact": {
+                "id": emergency_contact.id if emergency_contact else None,
+                "emergency_contact_name": emergency_contact.emergency_contact_name if emergency_contact else None,
+                "relation": emergency_contact.relation if emergency_contact else None,
+                "emergency_contact_number": emergency_contact.emergency_contact_number if emergency_contact else None
+            },
+            "languages_spoken": {
+                "id": language_spoken.id if language_spoken else None,
+                "languages": language_spoken.languages if language_spoken else None
+            },
+            "skill": {
+                "id": skill.id if skill else None,
+                "skill": skill.skill if skill else None,
+                "certification": skill.certification if skill else None,
+                "license": skill.license if skill else None
+            }
         }
-    }
-    
-    return teacher_data
+        
+        return teacher_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch teacher details: {str(e)}")
 
 # @router.get("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 # def get_Teacher_user_profile( user_id: int, db: Session = Depends(get_db)):
@@ -315,99 +325,147 @@ def decrement_content_file_count(db: Session, teacher_id: int):
 @router.put("/teachers/update/{Teacher_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def update_teacher_profile(
         Teacher_id: int,
-        teacher_data: TeacherUpdate = None,
-        employee_data: EmployeeUpdate = None,
-        teacher_contact_info: ContactInformationUpdate = None,
-        dependent: DependentsUpdate = None,
-        education: EducationUpdate = None,
-        skill: SkillUpdate = None,
-        emergency_contact: EmergencyContactUpdate = None,
-        languages_spoken: LanguagesSpokenUpdate = None,
+        teacher_data: Optional[TeacherUpdate] = None,
+        employee_data: Optional[EmployeeUpdate] = None,
+        teacher_contact_info: Optional[ContactInformationUpdate] = None,
+        dependent: Optional[DependentsUpdate] = None,
+        education: Optional[EducationUpdate] = None,
+        skill: Optional[SkillUpdate] = None,
+        emergency_contact: Optional[EmergencyContactUpdate] = None,
+        languages_spoken: Optional[LanguagesSpokenUpdate] = None,
         db: Session = Depends(get_db),
         current_user: LmsUsers = Depends(get_current_user)
 ):
-    existing_teacher = get_teacher1(db, Teacher_id)
-    if not existing_teacher:
-        raise HTTPException(status_code=404, detail="Teacher not found")
+    try:
+        # Check if the teacher exists
+        existing_teacher = get_teacher1(db, Teacher_id)
+        if not existing_teacher:
+            raise HTTPException(status_code=404, detail="Teacher not found")
 
-    if teacher_data:
-        update_teacher_data(db, Teacher_id, teacher_data)
-    
-    if employee_data:
-        update_employee(db, Teacher_id, employee_data)
-    
-    if teacher_contact_info:
-        update_teacher_contact_info(db, Teacher_id, teacher_contact_info)
+        # Helper function to handle conditional updates
+        def handle_update(model_instance, update_data):
+            for field, value in update_data.items():
+                if value is not None:
+                    setattr(model_instance, field, value)
 
-    if dependent:
-        update_teacher_depends(db, Teacher_id, dependent)
-    
-    if education:
-        update_teacher_education(db, Teacher_id, education)
+        # Update teacher data if provided
+        if teacher_data:
+            handle_update(existing_teacher, teacher_data.dict(exclude_unset=True))
 
-    if skill:
-        update_skill(db, Teacher_id, skill)
-    
-    if emergency_contact:
-        update_teacher_emergencyContact(db, Teacher_id, emergency_contact)
-    
-    if languages_spoken:
-        update_teacher_LanguagesSpoken(db, Teacher_id, languages_spoken)
+        # Fetch and update related data
+        existing_employee = get_employee(db, Teacher_id)
+        if employee_data and existing_employee:
+            handle_update(existing_employee, employee_data.dict(exclude_unset=True))
+
+        existing_contact_info = get_teacher_contact_info(db, Teacher_id)
+        if teacher_contact_info and existing_contact_info:
+            handle_update(existing_contact_info, teacher_contact_info.dict(exclude_unset=True))
+
+        existing_dependent = get_teacher_depends(db, Teacher_id)
+        if dependent and existing_dependent:
+            handle_update(existing_dependent, dependent.dict(exclude_unset=True))
+
+        existing_education = get_teacher_education(db, Teacher_id)
+        if education and existing_education:
+            handle_update(existing_education, education.dict(exclude_unset=True))
+
+        existing_skill = get_teacher_skills(db, Teacher_id)
+        if skill and existing_skill:
+            handle_update(existing_skill, skill.dict(exclude_unset=True))
+
+        existing_emergency_contact = get_teacher_emergency_contact(db, Teacher_id)
+        if emergency_contact and existing_emergency_contact:
+            handle_update(existing_emergency_contact, emergency_contact.dict(exclude_unset=True))
+
+        existing_languages_spoken = get_teacher_language_spoken(db, Teacher_id)
+        if languages_spoken and existing_languages_spoken:
+            handle_update(existing_languages_spoken, languages_spoken.dict(exclude_unset=True))
+
+        # Commit the updates to the database
+        db.commit()
+
+        # Fetch the updated data
+        updated_teacher = get_teacher1(db, Teacher_id)
+        updated_employee = get_employee(db, Teacher_id)
+        updated_contact_info = get_teacher_contact_info(db, Teacher_id)
+        updated_dependent = get_teacher_depends(db, Teacher_id)
+        updated_education = get_teacher_education(db, Teacher_id)
+        updated_skill = get_teacher_skills(db, Teacher_id)
+        updated_emergency_contact = get_teacher_emergency_contact(db, Teacher_id)
+        updated_languages_spoken = get_teacher_language_spoken(db, Teacher_id)
 
 
-    return {"message": "Teacher data has been updated successfully"}
+        return {
+            "Teacher_data": updated_teacher,
+            "employee_data": updated_employee,
+            "contact_info": updated_contact_info,
+            "dependent": updated_dependent,
+            "education": updated_education,
+            "skill": updated_skill,
+            "emergency_contact": updated_emergency_contact,
+            "languages_spoken": updated_languages_spoken
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update teacher details: {str(e)}")
 
 
-@router.delete("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+
+@router.delete("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def delete_teacher(user_id: int, db: Session = Depends(get_db)):
-    # Check if the teacher exists
-    existing_teacher = db.query(Teacher).filter(Teacher.user_id == user_id).first()
-    if not existing_teacher:
-        raise HTTPException(status_code=404, detail="Teacher not found")
+    try:
+        # Check if the teacher exists
+        existing_teacher = db.query(Teacher).filter(Teacher.user_id == user_id).first()
+        if not existing_teacher:
+            raise HTTPException(status_code=404, detail="Teacher not found")
 
-    # Delete associated data from other tables
-    db.query(Employee).filter(Employee.Teacher_id == existing_teacher.Teacher_id).delete()
-    db.query(TeacherContact).filter(TeacherContact.Teacher_id == existing_teacher.Teacher_id).delete()
-    db.query(Education).filter(Education.Teacher_id == existing_teacher.Teacher_id).delete()
-    db.query(Dependents).filter(Dependents.Teacher_id == existing_teacher.Teacher_id).delete()
-    db.query(EmergencyContact).filter(EmergencyContact.Teacher_id == existing_teacher.Teacher_id).delete()
-    db.query(LanguagesSpoken).filter(LanguagesSpoken.Teacher_id == existing_teacher.Teacher_id).delete()
-    db.query(Skill).filter(Skill.Teacher_id == existing_teacher.Teacher_id).delete()
+        # Delete associated data from other tables
+        db.query(Employee).filter(Employee.Teacher_id == existing_teacher.Teacher_id).delete()
+        db.query(TeacherContact).filter(TeacherContact.Teacher_id == existing_teacher.Teacher_id).delete()
+        db.query(Education).filter(Education.Teacher_id == existing_teacher.Teacher_id).delete()
+        db.query(Dependents).filter(Dependents.Teacher_id == existing_teacher.Teacher_id).delete()
+        db.query(EmergencyContact).filter(EmergencyContact.Teacher_id == existing_teacher.Teacher_id).delete()
+        db.query(LanguagesSpoken).filter(LanguagesSpoken.Teacher_id == existing_teacher.Teacher_id).delete()
+        db.query(Skill).filter(Skill.Teacher_id == existing_teacher.Teacher_id).delete()
 
-    # Delete the teacher
-    db.delete(existing_teacher)
-    db.commit()
-    lms_user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
-    if not lms_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Modify user_type and is_formsubmited attributes
-    lms_user.user_type = 'teacher'
-    lms_user.is_formsubmited = False
-    db.commit()
+        # Delete the teacher
+        db.delete(existing_teacher)
+        db.commit()
+        lms_user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
+        if not lms_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Modify user_type and is_formsubmited attributes
+        lms_user.user_type = 'teacher'
+        lms_user.is_formsubmited = False
+        db.commit()
 
-    return {"message": "Teacher and associated data deleted successfully"}
+        return {"message": "Teacher and associated data deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete teacher details: {str(e)}")
 
 
 
 @router.get("/teacher/dashboard_counts", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def get_teacher_dashboard_counts(db: Session = Depends(get_db)):
-    total_teachers_from_users = db.query(LmsUsers).filter(LmsUsers.user_type == "teacher").count()
-    total_employees = db.query(Teacher).count()
-    total_teacher_contacts = db.query(TeacherContact).count()
-    total_dependents = db.query(Dependents).count()
-    total_educations = db.query(Education).count()
-    total_languages_spoken = db.query(LanguagesSpoken).count()
-    total_skills = db.query(Skill).count()
-    total_emergency_contacts = db.query(EmergencyContact).count()
+    try:
+        total_teachers_from_users = db.query(LmsUsers).filter(LmsUsers.user_type == "teacher").count()
+        total_employees = db.query(Teacher).count()
+        total_teacher_contacts = db.query(TeacherContact).count()
+        total_dependents = db.query(Dependents).count()
+        total_educations = db.query(Education).count()
+        total_languages_spoken = db.query(LanguagesSpoken).count()
+        total_skills = db.query(Skill).count()
+        total_emergency_contacts = db.query(EmergencyContact).count()
 
-    return {
-        "total_teachers_from_users": total_teachers_from_users,
-        "employee_count": total_employees,
-        "teacher_contact_count": total_teacher_contacts,
-        "dependents_count": total_dependents,
-        "education_count": total_educations,
-        "languages_spoken_count": total_languages_spoken,
-        "skills_count": total_skills,
-        "emergency_contact_count": total_emergency_contacts
-    }
+        return {
+            "total_teachers_from_users": total_teachers_from_users,
+            "employee_count": total_employees,
+            "teacher_contact_count": total_teacher_contacts,
+            "dependents_count": total_dependents,
+            "education_count": total_educations,
+            "languages_spoken_count": total_languages_spoken,
+            "skills_count": total_skills,
+            "emergency_contact_count": total_emergency_contacts
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create teacher dashboard: {str(e)}")
