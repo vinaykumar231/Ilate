@@ -55,26 +55,29 @@ def get_amount_by_criteria(
 # Create a new fee
 @router.post("/fees/create_fees/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_student)])
 async def create_fee(fee_data: FeeCreate, db: Session = Depends(get_db)):
-    # Define a list of all related entities
-    related_entities = [
-        (Course, fee_data.course_id, "Course"),
-        (Subject, fee_data.subject_id, "Subject"),
-        (Standard, fee_data.standard_id, "Standard"),
-        (Module, fee_data.module_id, "Module"),
-        (Batch, fee_data.batch_id, "Batch")
-    ]
+    try:
+        # Define a list of all related entities
+        related_entities = [
+            (Course, fee_data.course_id, "Course"),
+            (Subject, fee_data.subject_id, "Subject"),
+            (Standard, fee_data.standard_id, "Standard"),
+            (Module, fee_data.module_id, "Module"),
+            (Batch, fee_data.batch_id, "Batch")
+        ]
 
-    # Check existence of each related entity
-    for entity_cls, entity_id, entity_name in related_entities:
-        entity_exists = db.query(entity_cls).filter(entity_cls.id == entity_id).first()
-        if not entity_exists:
-            raise HTTPException(status_code=404, detail=f"{entity_name} with id {entity_id} not found")
+        # Check existence of each related entity
+        for entity_cls, entity_id, entity_name in related_entities:
+            entity_exists = db.query(entity_cls).filter(entity_cls.id == entity_id).first()
+            if not entity_exists:
+                raise HTTPException(status_code=404, detail=f"{entity_name} with id {entity_id} not found")
 
-    fee = Fee(**fee_data.dict())
-    db.add(fee)
-    db.commit()
-    db.refresh(fee)
-    return fee
+        fee = Fee(**fee_data.dict())
+        db.add(fee)
+        db.commit()
+        db.refresh(fee)
+        return fee
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to insert fees: {str(e)}")
 
 @router.get("/fees/bycriteria", response_model=None)
 async def read_fees(
@@ -87,34 +90,46 @@ async def read_fees(
 # Get all fees
 @router.get("/fees/all_fees/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def read_fees(db: Session = Depends(get_db)):
-    return db.query(Fee).all()
+    try:
+        return db.query(Fee).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch fees: {str(e)}")
 
 # Get a specific fee by ID
 @router.get("/fees/{fee_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def read_fee(fee_id: int, db: Session = Depends(get_db)):
-    fee = db.query(Fee).filter(Fee.id == fee_id).first()
-    if fee is None:
-        raise HTTPException(status_code=404, detail="Fee not found")
-    return fee
+    try:
+        fee = db.query(Fee).filter(Fee.id == fee_id).first()
+        if fee is None:
+            raise HTTPException(status_code=404, detail="Fee not found")
+        return fee
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch fees: {str(e)}")
 
 # Update a fee by ID
 @router.put("/fees/update_fees/{fee_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def update_fee(fee_id: int, fee_data: FeeUpdate, db: Session = Depends(get_db)):
-    fee = db.query(Fee).filter(Fee.id == fee_id).first()
-    if fee is None:
-        raise HTTPException(status_code=404, detail="Fee not found")
-    for key, value in fee_data.dict().items():
-        setattr(fee, key, value)
-    db.commit()
-    db.refresh(fee)
-    return fee
+    try:
+        fee = db.query(Fee).filter(Fee.id == fee_id).first()
+        if fee is None:
+            raise HTTPException(status_code=404, detail="Fee not found")
+        for key, value in fee_data.dict().items():
+            setattr(fee, key, value)
+        db.commit()
+        db.refresh(fee)
+        return fee
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update fees: {str(e)}")
 
 # Delete a fee by ID
 @router.delete("/fees/delete_fees/{fee_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_fee(fee_id: int, db: Session = Depends(get_db)):
-    fee = db.query(Fee).filter(Fee.id == fee_id).first()
-    if fee is None:
-        raise HTTPException(status_code=404, detail="fee not found")
-    db.delete(fee)
-    db.commit()
-    return fee
+    try:
+        fee = db.query(Fee).filter(Fee.id == fee_id).first()
+        if fee is None:
+            raise HTTPException(status_code=404, detail="fee not found")
+        db.delete(fee)
+        db.commit()
+        return fee
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete fees: {str(e)}")

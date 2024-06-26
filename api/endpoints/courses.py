@@ -296,7 +296,7 @@ def get_course_content_by_criteria(
         return content_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to fetch course_content_by_criteria: {str(e)}")
     
 
 ######

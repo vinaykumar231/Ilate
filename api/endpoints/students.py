@@ -68,7 +68,7 @@ async def create_student(
 
         return student
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to create student details: {str(e)}")
 
 @router.get("/students/{student_id}", response_model=None)
 async def get_student(student_id: int, db: Session = Depends(get_db)):
@@ -78,7 +78,7 @@ async def get_student(student_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Student not found")
         return student
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to fetch student details: {str(e)}")
 
 
 @router.put("/students/{student_id}", response_model=None)
@@ -138,7 +138,7 @@ async def update_student(
 
         return {"message": "Student updated successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update student details: {str(e)}")
 
 
 @router.delete("/students/{student_id}", response_model=None)
@@ -158,4 +158,4 @@ async def delete_student(
 
         return {"message": "Student deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete student details: {str(e)}")

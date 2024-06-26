@@ -53,35 +53,38 @@ async def create_content(
 
         return db_announcement 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=" failed to insert an announcement")
 
 @router.get("/announcement/{announcement_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_student_teacher_parent)])
 async def get_announcement(announcement_id: int, db: Session = Depends(get_db)):
-    announcement = db.query(Announcement).filter(Announcement.id == announcement_id).first()
-    if not announcement:
-        raise HTTPException(status_code=404, detail="Announcement not found")
+    try:
+        announcement = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+        if not announcement:
+            raise HTTPException(status_code=404, detail="Announcement not found")
 
-    base_url_path = "http://192.168.29.82:8001"  # Your base URL path
+        base_url_path = "http://192.168.29.82:8001"  # Your base URL path
 
-    announcement_images_path = announcement.announcement_images
-    if announcement_images_path:
-        announcement_images_url = f"{base_url_path}/{announcement_images_path}"
-    else:
-        announcement_images_url = None
+        announcement_images_path = announcement.announcement_images
+        if announcement_images_path:
+            announcement_images_url = f"{base_url_path}/{announcement_images_path}"
+        else:
+            announcement_images_url = None
 
-    announcement_response = Announcement(
-        id=announcement.id,
-        title=announcement.title,
-        announcement_text=announcement.announcement_text,
-        announcement_images=announcement_images_url
-    )
+        announcement_response = Announcement(
+            id=announcement.id,
+            title=announcement.title,
+            announcement_text=announcement.announcement_text,
+            announcement_images=announcement_images_url
+        )
 
-    return announcement_response
+        return announcement_response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=" failed to fetch an announcement")
 
 @router.put("/announcement/{announcement_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def update_announcement(
     announcement_id: int,
-    title: str = Form(...),
+    title: str = Form(None),
     announcement_text: str = Form(None),
     announcement_images: UploadFile = File(default=None),
     db: Session = Depends(get_db)
@@ -95,25 +98,28 @@ async def update_announcement(
         announcement_images_path = save_upload_file(announcement_images)
 
     try:
-        announcement.title = title
-        announcement.announcement_text = announcement_text
-        announcement.announcement_images = announcement_images_path
+        if title is not None:
+            announcement.title = title
+        if announcement_text is not None:
+            announcement.announcement_text = announcement_text
+        if announcement_images_path:
+            announcement.announcement_images = announcement_images_path
+
         db.commit()
         db.refresh(announcement)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update announcement: {str(e)}")
 
     base_url_path = "http://192.168.29.82:8001"  # Your base URL path
-    announcement_images_url = f"{base_url_path}/{announcement_images_path}" if announcement_images_path else None
+    announcement_images_url = f"{base_url_path}/{announcement.announcement_images}" if announcement.announcement_images else None
 
-    announcement_response = Announcement(
-        id=announcement.id,
-        title=announcement.title,
-        announcement_text=announcement.announcement_text,
-        announcement_images=announcement_images_url
-    )
-
-    return announcement_response
+    return {
+        "id": announcement.id,
+        "title": announcement.title,
+        "announcement_text": announcement.announcement_text,
+        "announcement_images": announcement_images_url
+    }
 
 @router.delete("/announcement/{announcement_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
@@ -125,6 +131,6 @@ async def delete_announcement(announcement_id: int, db: Session = Depends(get_db
         db.delete(announcement)
         db.commit()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=" failed to delete an announcement")
 
     return {"message": "Announcement deleted successfully"}

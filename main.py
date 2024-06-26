@@ -7,8 +7,9 @@ from api.endpoints import (companies_router, branches_router, usertypes_router, 
                            users_router,  demo_router, demovideos_router, subjects_router,lessons_router,
                            standards_router, courses_router, admission_router, inquiry_router,payments_router,content_router,
                            batches_router, fees_router, tests_router,  questions_router, 
-                           question_papers_router, parents_router, teachers_Data_router,installments_router,mail_router,announcement_router
+                           question_papers_router, parents_router, teachers_Data_router,installments_router,mail_router,announcement_router, teacher_course_router,course_active
 )
+
 
 #Teacher data Api Router
 #from Teacher_data.Employee.api import (contact_info_router, education_router, skills_router, languages_spoken_router, emergency_contacts_router,
@@ -65,6 +66,7 @@ app.include_router(batches_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(questions_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(question_papers_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(announcement_router, prefix="/api", tags=["Admin Routes"])
+app.include_router(teacher_course_router, prefix="/api", tags=["Admin Routes"])
 
 app.include_router(demo_router, prefix="/api", tags=["Student Routes"])
 app.include_router(demovideos_router, prefix="/api", tags=["Student Routes"])
@@ -73,6 +75,7 @@ app.include_router(fees_router, prefix="/api", tags=["Student Routes"])
 app.include_router(payments_router, prefix="/api", tags=["Student Routes"])
 app.include_router(installments_router, prefix="/api", tags=["Student Routes"])
 app.include_router(mail_router, prefix="/api", tags=["Student Routes"])
+app.include_router(course_active, prefix="/api", tags=["Student Routes"])
 
 #app.include_router(inquiry_router, prefix="/api", tags=["Student Routes"])
 #app.include_router(fees_router, prefix="/api")

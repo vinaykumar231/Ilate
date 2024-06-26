@@ -25,15 +25,18 @@ def create_question_paper(question_paper: QuestionPaperCreate, db: Session = Dep
         db.refresh(db_question_paper)
         return db_question_paper
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))   
+        raise HTTPException(status_code=500, detail=f"Failed to insert question_papers: {str(e)}")   
      
 # Get QuestionPaper by ID
 @router.get("/question_papers/{question_paper_id}", response_model=None)
 def get_question_paper(question_paper_id: int, db: Session = Depends(get_db)):
-    db_question_paper = db.query(QuestionPaperModel).filter(QuestionPaperModel.id == question_paper_id).first()
-    if db_question_paper is None:
-        raise HTTPException(status_code=404, detail="QuestionPaper not found")
-    return db_question_paper
+    try:
+        db_question_paper = db.query(QuestionPaperModel).filter(QuestionPaperModel.id == question_paper_id).first()
+        if db_question_paper is None:
+            raise HTTPException(status_code=404, detail="QuestionPaper not found")
+        return db_question_paper
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch question_papers: {str(e)}")
 
 # Update QuestionPaper
 from fastapi import HTTPException
@@ -73,15 +76,18 @@ def update_question_paper(question_paper_id: int, question_paper: QuestionPaperC
         
         return {"message": "QuestionPaper updated successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to update question_papers: {str(e)}")
 
 
 # Delete QuestionPaper
 @router.delete("/question_papers/{question_paper_id}")
 def delete_question_paper(question_paper_id: int, db: Session = Depends(get_db)):
-    db_question_paper = db.query(QuestionPaperModel).filter(QuestionPaperModel.id == question_paper_id).first()
-    if db_question_paper is None:
-        raise HTTPException(status_code=404, detail="QuestionPaper not found")
-    db.delete(db_question_paper)
-    db.commit()
-    return {"message": "QuestionPaper deleted successfully"}
+    try:
+        db_question_paper = db.query(QuestionPaperModel).filter(QuestionPaperModel.id == question_paper_id).first()
+        if db_question_paper is None:
+            raise HTTPException(status_code=404, detail="QuestionPaper not found")
+        db.delete(db_question_paper)
+        db.commit()
+        return {"message": "QuestionPaper deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete question_papers: {str(e)}")

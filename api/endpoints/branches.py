@@ -9,43 +9,58 @@ router = APIRouter()
 # Create a new branch
 @router.post("/branches/", response_model=None)
 async def create_branch(branch_data: BranchCreate, db: Session = Depends(get_db)):
-    branch = Branch(**branch_data.dict())
-    db.add(branch)
-    db.commit()
-    db.refresh(branch)
-    return branch
+    try:
+        branch = Branch(**branch_data.dict())
+        db.add(branch)
+        db.commit()
+        db.refresh(branch)
+        return branch
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=" failed to insert branch")
 
 # Get all branches
 @router.get("/branches/", response_model=None)
 async def read_all_branches(db: Session = Depends(get_db)):
-    return db.query(Branch).all()
+    try:
+        return db.query(Branch).all()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=" failed to fetch branch")
 
 # Get a specific branch by ID
 @router.get("/branches/{branch_id}", response_model=None)
 async def read_branch(branch_id: int, db: Session = Depends(get_db)):
-    branch = db.query(Branch).filter(Branch.id == branch_id).first()
-    if branch is None:
-        raise HTTPException(status_code=404, detail="Branch not found")
-    return branch
+    try:
+        branch = db.query(Branch).filter(Branch.id == branch_id).first()
+        if branch is None:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        return branch
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=" failed to fetch branch")
 
 # Update a branch by ID
 @router.put("/branches/{branch_id}", response_model=None)
 async def update_branch(branch_id: int, branch_data: BranchUpdate, db: Session = Depends(get_db)):
-    branch = db.query(Branch).filter(Branch.id == branch_id).first()
-    if branch is None:
-        raise HTTPException(status_code=404, detail="Branch not found")
-    for key, value in branch_data.dict().items():
-        setattr(branch, key, value)
-    db.commit()
-    db.refresh(branch)
-    return branch
+    try:
+        branch = db.query(Branch).filter(Branch.id == branch_id).first()
+        if branch is None:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        for key, value in branch_data.dict().items():
+            setattr(branch, key, value)
+        db.commit()
+        db.refresh(branch)
+        return branch
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=" failed to update branch")
 
 # Delete a branch by ID
 @router.delete("/branches/{branch_id}", response_model=None)
 async def delete_branch(branch_id: int, db: Session = Depends(get_db)):
-    branch = db.query(Branch).filter(Branch.id == branch_id).first()
-    if branch is None:
-        raise HTTPException(status_code=404, detail="Branch not found")
-    db.delete(branch)
-    db.commit()
-    return branch
+    try:
+        branch = db.query(Branch).filter(Branch.id == branch_id).first()
+        if branch is None:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        db.delete(branch)
+        db.commit()
+        return branch
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=" failed to delete batch")

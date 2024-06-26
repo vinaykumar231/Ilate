@@ -66,19 +66,43 @@ async def create_content(
 
         return {"file_paths": file_paths}  # Returning the list of file paths
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=" failed to insert content")
 
     
 @router.get("/content/get_all", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def get_all_content(db: Session = Depends(get_db)):
-    contents = db.query(Content).all()
-    if not contents:
-        raise HTTPException(status_code=404, detail="No content found")
-    
-    base_url_path = "http://192.168.29.82:8001"  # Your base URL path
+    try:
+        contents = db.query(Content).all()
+        if not contents:
+            raise HTTPException(status_code=404, detail="No content found")
+        
+        base_url_path = "http://192.168.29.82:8001"  # Your base URL path
 
-    all_content_data = []
-    for content in contents:
+        all_content_data = []
+        for content in contents:
+            content_data = {
+                "id": content.id,
+                "name": content.name,
+                "description": content.description,
+                "content_type": content.content_type,
+                "lesson_id": content.lesson_id,
+                "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
+            }
+            all_content_data.append(content_data)
+
+        return JSONResponse(content=all_content_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="failed to fetch content")
+
+@router.get("/content/{content_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+async def get_content_by_id(content_id: int, db: Session = Depends(get_db)):
+    try:
+        content = db.query(Content).filter(Content.id == content_id).first()
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        base_url_path = "http://192.168.29.82:8001"  # Your base URL path
+
         content_data = {
             "id": content.id,
             "name": content.name,
@@ -87,28 +111,10 @@ async def get_all_content(db: Session = Depends(get_db)):
             "lesson_id": content.lesson_id,
             "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
         }
-        all_content_data.append(content_data)
 
-    return JSONResponse(content=all_content_data)
-
-@router.get("/content/{content_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
-async def get_content_by_id(content_id: int, db: Session = Depends(get_db)):
-    content = db.query(Content).filter(Content.id == content_id).first()
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-    
-    base_url_path = "http://192.168.29.82:8001"  # Your base URL path
-
-    content_data = {
-        "id": content.id,
-        "name": content.name,
-        "description": content.description,
-        "content_type": content.content_type,
-        "lesson_id": content.lesson_id,
-        "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
-    }
-
-    return content_data
+        return content_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="failed to fetch content")
 
 def increment_content_file_count(db: Session, teacher_id: int):
     teacher = db.query(Teacher).filter(Teacher.Teacher_id == teacher_id).first()
@@ -205,7 +211,7 @@ async def update_content(
         db.commit()
         return {"message": "Content updated successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="failed to update content")
 
 
     
@@ -227,7 +233,7 @@ def delete_content(content_id: int, db: Session = Depends(get_db)):
 
         return {"message": "Content deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="failed to delete content")
     
 # Get all contents
 # @router.get("/contents/", response_model=None)

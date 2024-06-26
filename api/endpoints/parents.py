@@ -4,7 +4,7 @@ from ..schemas import ParentCreate
 from sqlalchemy.orm import Session
 from db.session import get_db, SessionLocal
 from ..models import Student, ContactInformation, PreEducation, Parent, LmsUsers, Inquiry, DemoFormFill, CourseDetails,Course, Standard, module,Subject, Module, Payment
-from auth.auth_bearer import JWTBearer, get_admin_or_parent,get_user_id_from_token, get_admin_student_teacher_parent
+from auth.auth_bearer import JWTBearer, get_admin_or_parent,get_user_id_from_token, get_admin_student_teacher_parent, get_current_user
 
 ######
 from sqlalchemy import desc
@@ -206,93 +206,109 @@ router = APIRouter()
 ##################################################################################################################################
 @router.post("/parent/", response_model=None)
 def create_parent(parent: ParentCreate, db: Session = Depends(get_db)):
-    db_parent = Parent(**parent.dict())
-    db.add(db_parent)
-    db.commit()
-    db.refresh(db_parent)
-    return db_parent
+    try:
+        db_parent = Parent(**parent.dict())
+        db.add(db_parent)
+        db.commit()
+        db.refresh(db_parent)
+        return db_parent
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to insert parent: {str(e)}")
 
 @router.get("/student/{student_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
-def read_student_details(student_id: int, parent_id: int = Depends(get_user_id_from_token), db: Session = Depends(get_db)):
-    # Fetch student details
-    student = db.query(Student).filter(Student.id == student_id).first()
-    if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
-    
-    # Fetch parent details
-    parent = db.query(Parent).filter(Parent.parent_id == parent_id, Parent.student_id == student_id).first()
-    if not parent:
-        raise HTTPException(status_code=403, detail="Access denied. This student is not associated with the parent.")
-    # Fetch parent details
-   
-    # Fetch course details
-    course_details = db.query(CourseDetails).filter(CourseDetails.id == student.id).first()
-    if course_details:
-        course = db.query(Course).filter(Course.id == course_details.courses).first()
-        standard = db.query(Standard).filter(Standard.id == course_details.standards).first()
-        subject = db.query(Subject).filter(Subject.id == course_details.subjects).first()
-        module = db.query(Module).filter(Module.id == course_details.modules).first()
-    else:
-        course = None
-        standard = None
-        subject = None
-        module = None
+def read_student_details(student_id: int, user_id: int = Depends(get_user_id_from_token), db: Session = Depends(get_db)):
+    try:
+        # Fetch student details
+        student = db.query(Student).filter(Student.id == student_id).first()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
 
-    # Fetch payment details
-    payment = db.query(Payment).filter(Payment.user_id == student.user_id).order_by(desc(Payment.created_on)).first()
+        # Check if the user is an admin or the parent associated with the student
+        user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    return {
-        "student_id": student.id,
-        "first_name": student.first_name,
-        "middle_name": student.middle_name,
-        "last_name": student.last_name,
-        "date_of_birth": student.date_of_birth,
-        "gender": student.gender,
-        "nationality": student.nationality,
-        "date_of_joining": student.date_of_joining,
-        "date_of_completion": student.date_of_completion,
-        "parent_details": {
-            "parent_id": parent.parent_id if parent else None,
-            "first_name": parent.p_first_name if parent else None,
-            "middle_name": parent.p_middle_name if parent else None,
-            "last_name": parent.p_last_name if parent else None,
-            "guardian": parent.guardian if parent else None,
-            "primary_no": parent.primary_no if parent else None,
-            "primary_email": parent.primary_email if parent else None,
-        },
-        "course_details": {
-            "course_name": course.name if course else None,
-            "standard_name": standard.name if standard else None,
-            "subject_name": subject.name if subject else None,
-            "module_name": module.name if module else None,
-        },
-        "payment_details": {
-            "payment_id": payment.payment_id if payment else None,
-            "amount": payment.amount if payment else None,
-            "payment_mode": payment.payment_mode if payment else None,
-            "payment_info": payment.payment_info if payment else None,
-            "other_info": payment.other_info if payment else None,
-            "created_on": payment.created_on if payment else None,
+        if user.user_type == 'parent':
+            parent = db.query(Parent).filter(Parent.user_id == user_id, Parent.student_id == student_id).first()
+            if not parent:
+                raise HTTPException(status_code=403, detail="Access denied. This student is not associated with the parent.")
+        else:
+            parent = db.query(Parent).filter(Parent.student_id == student_id).first()
+
+        # Fetch course details
+        course_details = db.query(CourseDetails).filter(CourseDetails.students == student_id).first()
+        if course_details:
+            course = db.query(Course).filter(Course.id == course_details.courses).first()
+            standard = db.query(Standard).filter(Standard.id == course_details.standards).first()
+            subject = db.query(Subject).filter(Subject.id == course_details.subjects).first()
+            module = db.query(Module).filter(Module.id == course_details.modules).first()
+        else:
+            course = None
+            standard = None
+            subject = None
+            module = None
+
+        # Fetch payment details
+        payment = db.query(Payment).filter(Payment.user_id == student.user_id).order_by(desc(Payment.created_on)).first()
+
+        return {
+            "student_id": student.id,
+            "first_name": student.first_name,
+            "middle_name": student.middle_name,
+            "last_name": student.last_name,
+            "date_of_birth": student.date_of_birth,
+            "gender": student.gender,
+            "nationality": student.nationality,
+            "date_of_joining": student.date_of_joining,
+            "date_of_completion": student.date_of_completion,
+            "parent_details": {
+                "parent_id": parent.parent_id if parent else None,
+                "first_name": parent.p_first_name if parent else None,
+                "middle_name": parent.p_middle_name if parent else None,
+                "last_name": parent.p_last_name if parent else None,
+                "guardian": parent.guardian if parent else None,
+                "primary_no": parent.primary_no if parent else None,
+                "primary_email": parent.primary_email if parent else None,
+            },
+            "course_details": {
+                "course_name": course.name if course else None,
+                "standard_name": standard.name if standard else None,
+                "subject_name": subject.name if subject else None,
+                "module_name": module.name if module else None,
+            },
+            "payment_details": {
+                "payment_id": payment.payment_id if payment else None,
+                "amount": payment.amount if payment else None,
+                "payment_mode": payment.payment_mode if payment else None,
+                "payment_info": payment.payment_info if payment else None,
+                "other_info": payment.other_info if payment else None,
+                "created_on": payment.created_on if payment else None,
+            }
         }
-    }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch student data: {str(e)}")
 
-@router.get("/parent/{parent_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
-def read_parent(parent_id: int, db: Session = Depends(get_db)):
-    parent = db.query(Parent).filter(Parent.parent_id == parent_id).first()
-    if parent is None:
-        raise HTTPException(status_code=404, detail="Parent not found")
-    return {
-        "parent_id": parent.parent_id,
-        "first_name": parent.p_first_name,
-        "middle_name": parent.p_middle_name,
-        "last_name": parent.p_last_name,
-        "guardian": parent.guardian,
-        "primary_no": parent.primary_no,
-        "primary_email": parent.primary_email,
-        "student_id":parent.student_id,
-        "user_type":parent.user_type,
-        # Add any other parent details needed
-    }
+
+@router.get("/parent/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
+def read_parent(user_id: int, db: Session = Depends(get_db)):
+    try:
+        parent = db.query(Parent).filter(Parent.user_id == user_id).first()
+        if parent is None:
+            raise HTTPException(status_code=404, detail="Parent not found")
+        return {
+            "parent_id": parent.parent_id,
+            "first_name": parent.p_first_name,
+            "middle_name": parent.p_middle_name,
+            "last_name": parent.p_last_name,
+            "guardian": parent.guardian,
+            "primary_no": parent.primary_no,
+            "primary_email": parent.primary_email,
+            "student_id":parent.student_id,
+            "user_type":parent.user_type,
+            # Add any other parent details needed
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch parent: {str(e)}")
 # @router.get("/parent/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
 # def read_all_parent(db: Session = Depends(get_db)):
 #     parent = db.query(Parent).all()
@@ -302,45 +318,53 @@ def read_parent(parent_id: int, db: Session = Depends(get_db)):
 
 @router.get("/parent/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
 def read_all_parent(db: Session = Depends(get_db)):
-    parents = db.query(Parent).all()
-    if not parents:
-        raise HTTPException(status_code=404, detail="Parents not found")
-    
-    parent_data = [
-        {
-            "first_name": parent.p_first_name,
-            "middle_name": parent.p_middle_name,
-            "last_name": parent.p_last_name,
-            "guardian": parent.guardian,
-            "primary_no": parent.primary_no,
-            "primary_email": parent.primary_email,
-            "student_id": parent.student_id,
-            "user_type": parent.user_type,
-            # Add any other parent details needed
-        }
-        for parent in parents
-    ]
-    
-    return parent_data
+    try:
+        parents = db.query(Parent).all()
+        if not parents:
+            raise HTTPException(status_code=404, detail="Parents not found")
+        
+        parent_data = [
+            {
+                "first_name": parent.p_first_name,
+                "middle_name": parent.p_middle_name,
+                "last_name": parent.p_last_name,
+                "guardian": parent.guardian,
+                "primary_no": parent.primary_no,
+                "primary_email": parent.primary_email,
+                "student_id": parent.student_id,
+                "user_type": parent.user_type,
+                # Add any other parent details needed
+            }
+            for parent in parents
+        ]
+        
+        return parent_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch parent data: {str(e)}")
 
 
-@router.put("/parent/{parent_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
+@router.put("/parent/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
 def update_parent(
-    parent_id: int, parent: ParentCreate, db: Session = Depends(get_db)
+    user_id: int,
+    parent: ParentCreate,
+    db: Session = Depends(get_db)
 ):
-    db_parent = (
-        db.query(Parent).filter(Parent.parent_id == parent_id).first()
-    )
-    if db_parent is None:
-        raise HTTPException(status_code=404, detail="Parent not found")
-    update_data = parent.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_parent, key, value)
-    db.add(db_parent)
-    db.commit()
-    db.refresh(db_parent)
-    return db_parent
+    try:
+        db_parent = db.query(Parent).filter(Parent.user_id == user_id).first()
+        if db_parent is None:
+            raise HTTPException(status_code=404, detail="Parent not found")
 
+        update_data = parent.dict(exclude_unset=True) 
+        for key, value in update_data.items():
+            setattr(db_parent, key, value)  
+        db.commit()
+        db.refresh(db_parent) 
+        return db_parent  
+
+    except Exception as e:
+        db.rollback()  # Rollback changes in case of error
+        raise HTTPException(status_code=500, detail=f"Failed to update parent: {str(e)}")
+    
 
 # @router.delete("/parent/{parent_id}", response_model=None)
 # def delete_parent(parent_id: int, db: Session = Depends(get_db)):
@@ -354,24 +378,27 @@ def update_parent(
 #     return {"message": "parents info deleted successfully"}
 ############################################################################################################
 
-@router.get("/announcement/{announcement_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_student_teacher_parent)])
-async def get_announcement_parent(announcement_id: int, db: Session = Depends(get_db)):
-    announcement = db.query(Announcement).filter(Announcement.id == announcement_id).first()
-    if not announcement:
-        raise HTTPException(status_code=404, detail="Announcement not found")
+# @router.get("/announcement/{announcement_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_student_teacher_parent)])
+# async def get_announcement_parent(announcement_id: int, db: Session = Depends(get_db)):
+#     try:
+#         announcement = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+#         if not announcement:
+#             raise HTTPException(status_code=404, detail="Announcement not found")
 
-    base_url_path = "http://192.168.29.82:8001"  
-    announcement_images_path = announcement.announcement_images
-    if announcement_images_path:
-        announcement_images_url = f"{base_url_path}/{announcement_images_path}"
-    else:
-        announcement_images_url = None
+#         base_url_path = "http://192.168.29.82:8001"  
+#         announcement_images_path = announcement.announcement_images
+#         if announcement_images_path:
+#             announcement_images_url = f"{base_url_path}/{announcement_images_path}"
+#         else:
+#             announcement_images_url = None
 
-    announcement_response = Announcement(
-        id=announcement.id,
-        title=announcement.title,
-        announcement_text=announcement.announcement_text,
-        announcement_images=announcement_images_url
-    )
+#         announcement_response = Announcement(
+#             id=announcement.id,
+#             title=announcement.title,
+#             announcement_text=announcement.announcement_text,
+#             announcement_images=announcement_images_url
+#         )
 
-    return announcement_response
+#         return announcement_response
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to fetch announcement: {str(e)}")

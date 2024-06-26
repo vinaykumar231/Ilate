@@ -46,7 +46,7 @@ async def upload_proof(
             with open(Address_prof_file_path, "wb") as buffer:
                 shutil.copyfileobj(Address_prof.file, buffer)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to create prrof_id: {str(e)}")
     
     db_image = save_image_to_db(db, user_id, id_prof=unique_id_prof_filename, Address_prof=unique_address_prof_filename)
     return db_image
@@ -54,10 +54,13 @@ async def upload_proof(
 
 @router.get("/proof/{user_id}", response_model=ImageResponse)
 async def get_image(user_id: int, db: Session = Depends(get_db)):
-    db_image = get_image_by_user_id(user_id, db)
-    if db_image is None:
-        raise HTTPException(status_code=404, detail="Image not found")
-    return ImageResponse(user_id=db_image.user_id, id_prof=db_image.id_prof, Address_prof=db_image.Address_prof)
+    try:
+        db_image = get_image_by_user_id(user_id, db)
+        if db_image is None:
+            raise HTTPException(status_code=404, detail="Image not found")
+        return ImageResponse(user_id=db_image.user_id, id_prof=db_image.id_prof, Address_prof=db_image.Address_prof)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch prrof_id: {str(e)}")
 
 @router.put("/proof/{user_id}")
 async def update_image(
@@ -66,8 +69,14 @@ async def update_image(
     Address_prof: UploadFile = File(None),
     db: Session = Depends(get_db)
 ):
-    return update_image_in_db(db, user_id, id_prof, Address_prof)
+    try:
+        return update_image_in_db(db, user_id, id_prof, Address_prof)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update prrof_id: {str(e)}")
 
 @router.delete("/proof/{user_id}")
 async def delete_image(user_id: int, db: Session = Depends(get_db)):
-    return delete_image_from_db(db, user_id)
+    try:
+        return delete_image_from_db(db, user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete prrof_id: {str(e)}")
