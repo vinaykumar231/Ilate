@@ -9,14 +9,19 @@ class Lesson(Base):
     lesson_id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255))
     description = Column(String(255))
-    module_id = Column(Integer, ForeignKey('modules.id'))  
+    course_detail_id = Column(Integer, ForeignKey('course_details.id')) 
+    course_content_id = Column(Integer, ForeignKey("courses_content.id")) 
 
     question_papers = relationship('QuestionPaper', back_populates='lesson')
 
     content = relationship('Content', back_populates='lesson')
 
-    module = relationship('Module', back_populates='lessons')
+    course_detail = relationship('CourseDetails', back_populates='lessons')
     tests = relationship('Test', back_populates='lessons')
-    
 
-    
+    course_contents = relationship("Course_content", back_populates="lessons")
+
+
+
+
+

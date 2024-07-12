@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String,ForeignKey, JSON
+from sqlalchemy import Column, Integer, String,ForeignKey, JSON, Boolean
 from sqlalchemy.orm import relationship
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from db.base import Base
@@ -13,11 +13,18 @@ class Content(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255))
     lesson_id = Column(Integer, ForeignKey('lessons.lesson_id'))  # Corrected foreign key
+    course_detail_id = Column(Integer, ForeignKey('course_details.id'), nullable=True, default=None)
+    course_content_id = Column(Integer, ForeignKey("courses_content.id")) 
+    is_active_course = Column(Boolean, server_default='0', nullable=False) 
     description = Column(String(255))
     content_type = Column(String(255))  
     content_path = Column(JSON) 
 
     lesson = relationship('Lesson', back_populates='content')
+
+    course_detail = relationship('CourseDetails', back_populates='content')
+
+    course_contents = relationship("Course_content", back_populates="content")
     
 
 def save_upload(upload_file: UploadFile) -> str:

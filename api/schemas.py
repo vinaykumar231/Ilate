@@ -1,4 +1,4 @@
-from pydantic import BaseModel,  Field
+from pydantic import BaseModel,  Field, EmailStr
 from typing import Optional, List
 from fastapi import UploadFile, File
 from datetime import date
@@ -86,6 +86,31 @@ class Student(StudentBase):
 
     class Config:
         orm_mode = True
+class StudentUpdate_all_data(BaseModel):
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    last_name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    nationality: Optional[str] = None
+    referral: Optional[str] = None
+    date_of_joining: Optional[date] = None
+    date_of_completion: Optional[date] = None
+    primary_no: Optional[str] = None
+    secondary_no: Optional[str] = None
+    primary_email: Optional[str] = None
+    secondary_email: Optional[str] = None
+    current_address: Optional[str] = None
+    permanent_address: Optional[str] = None
+    student_class: Optional[str] = None
+    school: Optional[str] = None
+    year_of_passing: Optional[int] = None
+    percentage: Optional[float] = None
+    p_first_name: Optional[str] = None
+    p_middle_name: Optional[str] = None
+    p_last_name: Optional[str] = None
+    guardian: Optional[str] = None
+    
 
 ##############################CoureDetails########################
 from pydantic import BaseModel
@@ -205,7 +230,15 @@ class Parent(ParentBase):
 
     class Config:
         orm_mode = True
-
+class ParentUpdate(BaseModel):
+    p_first_name: Optional[str] = None
+    p_middle_name: Optional[str] = None
+    p_last_name: Optional[str] = None
+    guardian: Optional[str] = None
+    primary_no: Optional[str] = None
+    secondary_no: Optional[str] = None
+    primary_email: Optional[str] = None
+    secondary_email: Optional[str] = None
 
 #########################studentContact#####################################
 class StudentContactBase(BaseModel):
@@ -787,3 +820,103 @@ class MailCreate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     subject: Optional[str] = None
+
+
+######################### teacher put method only #####################################
+class ConfigModel(BaseModel):
+    class Config:
+        from_attributes = True
+
+class TeacherUpdate1(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    department:Optional[str] = None
+
+class ContactInfoUpdate(BaseModel):
+    primary_number: Optional[str] = None
+    secondary_number: Optional[str] = None
+    primary_email_id: Optional[str] = None
+    secondary_email_id: Optional[str] = None
+    current_address: Optional[str] = None
+    permanent_address: Optional[str] = None
+
+class DependentUpdate(BaseModel):
+    dependent_name: Optional[str] = None
+    relation: Optional[str] = None
+    date_of_birth: Optional[date] = None
+
+class EducationUpdate1(BaseModel):
+    education_level: Optional[str] = None
+    institution: Optional[str] = None
+    specialization: Optional[str] = None
+    field_of_study: Optional[str] = None
+    year_of_passing: Optional[int] = None
+    percentage: Optional[float] = None
+
+class EmergencyContactUpdate1(BaseModel):
+    emergency_contact_name: Optional[str] = None
+    relation: Optional[str] = None
+    emergency_contact_number: Optional[int] = None
+
+class LanguagesSpokenUpdate1(BaseModel):
+    languages: Optional[str] = None
+
+class SkillUpdate1(BaseModel):
+    skill: Optional[str] = None
+    certification: Optional[str] = None
+    license: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+###################################### only for student addmsion put api update ##########################
+class StudentUpdate_data(BaseModel):
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    last_name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    nationality: Optional[str] = None
+    referral: Optional[str] = None
+    date_of_joining: Optional[date] = None
+    date_of_completion: Optional[date] = None
+
+class ContactInfoUpdate_data(BaseModel):
+    primary_no: Optional[str] = None
+    secondary_no: Optional[str] = None
+    primary_email: Optional[EmailStr] = None
+    secondary_email: Optional[EmailStr] = None
+    current_address: Optional[str] = None
+    permanent_address: Optional[str] = None
+
+class PreEducationUpdate_data(BaseModel):
+    student_class: Optional[str] = None
+    school: Optional[str] = None
+    year_of_passing: Optional[int] = None
+    percentage: Optional[float] = None
+
+class ParentInfoUpdate_data(BaseModel):
+    p_first_name: Optional[str] = None
+    p_middle_name: Optional[str] = None
+    p_last_name: Optional[str] = None
+    guardian: Optional[str] = None
+    primary_no: Optional[str] = None
+    primary_email: Optional[EmailStr] = None
+
+#######################################mm create course by admin with Hierarchy  #######################################################################################   
+class ModuleCreate1(BaseModel):
+    module_name: str
+
+class SubjectCreate1(BaseModel):
+    subject_name: str
+    modules: List[ModuleCreate1]
+
+class StandardCreate1(BaseModel):
+    standard_name: str
+    subjects: List[SubjectCreate1]
+
+class CourseCreateWithHierarchy1(BaseModel):
+    course_name: str
+    description: Optional[str]
+    standards: List[StandardCreate1]
+

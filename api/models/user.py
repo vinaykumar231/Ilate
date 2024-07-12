@@ -82,7 +82,7 @@ class LmsUsers(Base):
             return HTTPException(status_code=e.status_code, detail=error_message)
         except Exception as e:
             db.rollback()
-            return HTTPException(500, detail=str(e))
+            return HTTPException(500, detail="Failed to register, Enter valid email")
 
     # #######################################################################################################################
 

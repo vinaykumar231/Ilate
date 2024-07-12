@@ -43,3 +43,4 @@ from .employee_master_table import Employee
 from .mail import Mail
 from .announcement import Announcement
 from .teacher_course import TeacherCourse
+from .courses_content import Course_content

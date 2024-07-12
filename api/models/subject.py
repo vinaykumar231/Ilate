@@ -22,5 +22,7 @@ class Subject(Base):
     payments = relationship("Payment", back_populates="subject")
 
     #student = relationship("Student",uselist=False, back_populates="subject")
+    
+    course_contents = relationship("Course_content", back_populates="subject")
 
 

@@ -10,10 +10,10 @@ from typing import Optional, List
 import os
 import uuid
 import shutil
+from dotenv import load_dotenv
 
 
-
-
+load_dotenv()
 router = APIRouter()
 
 
@@ -35,7 +35,7 @@ def get_standard_id(standard_name: str, db: Session):
         raise HTTPException(status_code=404, detail="Standard not found")
     return standard.id
 
-base_url_path = "http://192.168.0.123:8001"
+base_url_path = os.getenv("BASE_URL_PATH")
 
 
 
@@ -101,21 +101,18 @@ def create_video(
 #         raise HTTPException(status_code=500, detail=str(e))
 ##############################################################################
 
-def save_upload(files: List[str], base_url_path: str) -> List[str]:
-    file_paths = []
+def save_upload(file_path: str) -> str:
     try:
-        for file_path in files:
-            unique_filename = str(uuid.uuid4()) + "_" + os.path.basename(file_path)
-            dest_path = os.path.join(base_url_path, unique_filename)
-
-            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-
-            shutil.copyfile(file_path, dest_path)
+        unique_filename = str(uuid.uuid4()) + "_" + os.path.basename(file_path)
+        dest_path = os.path.join("static", "uploads", unique_filename)
         
-            # Convert backslashes to forward slashes
-            dest_path = dest_path.replace("\\", "/")
-            file_paths.append(dest_path)
-        return file_paths
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        
+        shutil.copyfile(file_path, dest_path)
+        
+        # Convert backslashes to forward slashes
+        dest_path = dest_path.replace("\\", "/")
+        return dest_path
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
 
@@ -128,44 +125,46 @@ def get_videos_by_criteria(
 ):
     try:
         result = {}
-        base_url_path = "static/uploads"
-        base_url_http_path = "http://192.168.0.123:8001/static/uploads"
+        base_url_path = os.getenv("BASE_URL_PATH")
+        
         query = db.query(Video)
-
+        
         if not course_name:
             courses = db.query(Course).all()
             result["courses"] = [{"id": c.id, "name": c.name} for c in courses]
-
-        course = db.query(Course).filter(Course.name == course_name).first()
+        
         if course_name and not standard_id:
-            standards = db.query(Standard).filter(Standard.course_id == course.id).all()
-            result["standards"] = [{"id": s.id, "name": s.name} for s in standards]
-
+            course = db.query(Course).filter(Course.name == course_name).first()
+            if course:
+                standards = db.query(Standard).filter(Standard.course_id == course.id).all()
+                result["standards"] = [{"id": s.id, "name": s.name} for s in standards]
+        
         if standard_id and not subject_id:
             subjects = db.query(Subject).filter(Subject.standard_id == standard_id).all()
             result["subjects"] = [{"id": s.id, "name": s.name} for s in subjects]
-
+        
         if subject_id:
             query = query.filter(Video.subject_id == subject_id)
-
+        
         videos = query.all()
         if not videos:
             raise HTTPException(status_code=404, detail="Videos not found")
-
+        
         video_data = []
         for video in videos:
-            video_url = f"{base_url_http_path}/{os.path.basename(video.url)}"
+            video_path = save_upload(video.url)
+            video_url = f"{base_url_path}/{video_path}"
             video_info = {
                 "name": video.name,
                 "url": video_url,
             }
             video_data.append(video_info)
-
-        return {
-            "videos": video_data,
-            
-        }
-
+        
+        result["videos"] = video_data
+        return result
+    
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get demo video: {str(e)}")
 

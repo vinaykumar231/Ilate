@@ -18,3 +18,4 @@ class Standard(Base):
     payments = relationship("Payment", back_populates="standard")
 
     #student = relationship("Student",uselist=False, back_populates="standard")
+    courses_content = relationship("Course_content", back_populates="standard")

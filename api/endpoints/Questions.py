@@ -15,10 +15,11 @@ import uuid
 import os
 from auth.auth_bearer import JWTBearer,get_admin, get_teacher, get_admin_or_teacher
 from ..endpoints.lms_users import router as lms_router, get_current_user
+from sqlalchemy.exc import IntegrityError
+from dotenv import load_dotenv
 
 
-
-
+load_dotenv()
 router = APIRouter()
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -40,8 +41,8 @@ async def create_question(
     option4_image: UploadFile = File(default=None),
     correct_answer_text: str = Form(None),
     correct_answer_image: UploadFile = File(default=None),
-    given_answer_text: str = Form(None),
-    given_answer_image: UploadFile = File(default=None),
+    # given_answer_text: str = Form(None),
+    # given_answer_image: UploadFile = File(default=None),
     difficulty_level: str = Form(None),
     db: Session = Depends(get_db)
 ):
@@ -49,7 +50,7 @@ async def create_question(
         # Save all uploaded files and append their paths to a list
         file_paths = []
         for file in [question_image, option1_image, option2_image, option3_image, option4_image,
-                     correct_answer_image, given_answer_image]:
+                     correct_answer_image]:
             if file:
                 file_path = f"static/uploads/{file.filename}"
                 with open(file_path, "wb") as buffer:
@@ -68,8 +69,8 @@ async def create_question(
             option3_images=file_paths[3] if len(file_paths) > 3 else None,
             option4_text=option4_text,
             option4_images=file_paths[4] if len(file_paths) > 4 else None,
-            given_ans_text=given_answer_text,
-            given_ans_image=file_paths[5] if len(file_paths) > 5 else None,
+            # given_ans_text=given_answer_text,
+            # given_ans_image=file_paths[5] if len(file_paths) > 5 else None,
             correct_ans_text=correct_answer_text,
             correct_ans_images=file_paths[6] if len(file_paths) > 6 else None,
             difficulty_level=difficulty_level
@@ -80,12 +81,54 @@ async def create_question(
         db.commit()
         db.refresh(db_question)
 
-        return {"message": "Question has been created successfully"}
+        return db_question
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create question: {str(e)}")
+    
+@router.post("/questions/{question_id}/answer")
+async def answer_question(
+    question_id: int, 
+    given_ans_text: str = Form(None),
+    given_ans_image: UploadFile = File(None), 
+    db: Session = Depends(get_db)
+):
+    
+    question = db.query(Question).filter(Question.question_id == question_id).first()
+    
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    if not given_ans_text and not given_ans_image:
+        raise HTTPException(status_code=400, detail="At least one answer must be provided")
 
-# Get Question by ID
-base_url_path = "http://192.168.29.40:8000"
+    image_path = None
+    if given_ans_image:
+       
+        upload_dir = "uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        file_location = f"{upload_dir}/{given_ans_image.filename}"
+        with open(file_location, "wb+") as file_object:
+            file_object.write(given_ans_image.file.read())
+        image_path = file_location
+
+    try:
+        question.given_ans_text = given_ans_text
+        question.given_ans_image = image_path
+        db.commit()
+        db.refresh(question)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Error updating the question")
+
+    return {
+        "question_id": question.question_id,
+        "given_ans_text": question.given_ans_text,
+        "given_ans_image": question.given_ans_image
+    }
+
+
+base_url_path = os.getenv("BASE_URL_PATH")
 
 @router.get("/questions/{question_id}", response_model=None)
 async def get_question(

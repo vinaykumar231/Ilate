@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from ..models import Parent
-from ..schemas import ParentCreate
+from ..schemas import ParentCreate,ParentUpdate
 from sqlalchemy.orm import Session
 from db.session import get_db, SessionLocal
 from ..models import Student, ContactInformation, PreEducation, Parent, LmsUsers, Inquiry, DemoFormFill, CourseDetails,Course, Standard, module,Subject, Module, Payment
@@ -297,9 +297,9 @@ def read_parent(user_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Parent not found")
         return {
             "parent_id": parent.parent_id,
-            "first_name": parent.p_first_name,
-            "middle_name": parent.p_middle_name,
-            "last_name": parent.p_last_name,
+            "p_first_name": parent.p_first_name,
+            "p_middle_name": parent.p_middle_name,
+            "p_last_name": parent.p_last_name,
             "guardian": parent.guardian,
             "primary_no": parent.primary_no,
             "primary_email": parent.primary_email,
@@ -325,9 +325,9 @@ def read_all_parent(db: Session = Depends(get_db)):
         
         parent_data = [
             {
-                "first_name": parent.p_first_name,
-                "middle_name": parent.p_middle_name,
-                "last_name": parent.p_last_name,
+                "p_first_name": parent.p_first_name,
+                "p_middle_name": parent.p_middle_name,
+                "p_last_name": parent.p_last_name,
                 "guardian": parent.guardian,
                 "primary_no": parent.primary_no,
                 "primary_email": parent.primary_email,
@@ -343,22 +343,39 @@ def read_all_parent(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch parent data: {str(e)}")
 
 
+
 @router.put("/parent/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
-def update_parent(
+def update_parent_form(
     user_id: int,
-    parent: ParentCreate,
+    parent_update: ParentUpdate,  # Assuming ParentUpdateSchema is a Pydantic schema for updating Parent
     db: Session = Depends(get_db)
 ):
     try:
         db_parent = db.query(Parent).filter(Parent.user_id == user_id).first()
         if db_parent is None:
             raise HTTPException(status_code=404, detail="Parent not found")
+       
+        # Update parent details if provided
+        if parent_update.p_first_name is not None:
+            db_parent.p_first_name = parent_update.p_first_name
+        if parent_update.p_middle_name is not None:
+            db_parent.p_middle_name = parent_update.p_middle_name
+        if parent_update.p_last_name is not None:
+            db_parent.p_last_name = parent_update.p_last_name
+        if parent_update.guardian is not None:
+            db_parent.guardian = parent_update.guardian
+        if parent_update.primary_no is not None:
+            db_parent.primary_no = parent_update.primary_no
+        if parent_update.secondary_no is not None:
+            db_parent.secondary_no = parent_update.secondary_no
+        if parent_update.primary_email is not None:
+            db_parent.primary_email = parent_update.primary_email
+        if parent_update.secondary_email is not None:
+            db_parent.secondary_email = parent_update.secondary_email
 
-        update_data = parent.dict(exclude_unset=True) 
-        for key, value in update_data.items():
-            setattr(db_parent, key, value)  
         db.commit()
-        db.refresh(db_parent) 
+        db.refresh(db_parent)
+        
         return db_parent  
 
     except Exception as e:

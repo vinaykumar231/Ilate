@@ -7,7 +7,7 @@ from api.endpoints import (companies_router, branches_router, usertypes_router, 
                            users_router,  demo_router, demovideos_router, subjects_router,lessons_router,
                            standards_router, courses_router, admission_router, inquiry_router,payments_router,content_router,
                            batches_router, fees_router, tests_router,  questions_router, 
-                           question_papers_router, parents_router, teachers_Data_router,installments_router,mail_router,announcement_router, teacher_course_router,course_active
+                           question_papers_router, parents_router, teachers_Data_router,installments_router,mail_router,announcement_router, teacher_course_router,course_active,google_map_router
 )
 
 
@@ -51,6 +51,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 app.include_router(companies_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(branches_router, prefix="/api")
+app.include_router(google_map_router, prefix="/api")
 # app.include_router(usertypes_router, prefix="/api")
 # app.include_router(students_router, prefix="/api")
 # app.include_router(designations_router, prefix="/api")

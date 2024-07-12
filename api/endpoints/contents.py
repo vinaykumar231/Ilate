@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 import os
 from ..models.Teacher import Teacher
 from ..models import Lesson
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from db.session import get_db
-from ..models import Content
+from ..models import Content, Module
 from ..schemas import ContentCreate
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher
@@ -13,6 +13,14 @@ from fastapi.responses import JSONResponse
 import os
 import uuid
 import shutil
+from pydantic import BaseModel
+from sqlalchemy.orm import joinedload
+from ..models. courses_content import Course_content
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 router = APIRouter()
 
@@ -30,10 +38,8 @@ async def create_content(
         if not lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
         
-        # Create an empty list to store file paths
         file_paths = []
 
-        # Iterate over uploaded files and process each one
         for upload_file in files:
             unique_filename = str(uuid.uuid4()) + "_" + upload_file.filename
             file_path = os.path.join("static", "uploads", unique_filename)
@@ -43,14 +49,9 @@ async def create_content(
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(upload_file.file, buffer)
             
-            # Convert backslashes to forward slashes
             file_path = file_path.replace("\\", "/")
             
-            # Append the file path to the list
             file_paths.append(file_path)
-        
-        # Now you have the list of file paths, you can do whatever you need with it
-        # For example, you can use it to create a new Content object
         
         db_content = Content(
             name=name,
@@ -68,6 +69,117 @@ async def create_content(
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert content")
 
+###########################################
+class ContentResponse(BaseModel):
+    id: int
+    name: str
+    description: str
+    content_type: str
+    content_path: List[str]
+
+class LessonResponse(BaseModel):
+    lesson_id: int
+    title: str
+    description: str
+    module_id: int
+    contents: List[ContentResponse]
+
+@router.post("/content/with_lesson", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
+async def create_lesson_and_content(
+    course_content_id: int = Form(...),
+    course_detail_id: Optional[int] = Form(None),
+    lesson_title: str = Form(...),
+    lesson_description: str = Form(...),
+    content_names: str = Form(...),
+    content_descriptions: str = Form(...),
+    content_types: str = Form(...),
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db)
+):
+    # Check if the course content exists
+    course_content = db.query(Course_content).filter(Course_content.id == course_content_id).first()
+    if not course_content:
+        raise HTTPException(status_code=404, detail="Course content_id not found")
+
+    new_lesson = Lesson(
+        title=lesson_title,
+        description=lesson_description,
+        course_content_id=course_content_id
+    )
+    db.add(new_lesson)
+    db.flush()  
+
+    file_paths = []
+    for upload_file in files:
+        unique_filename = str(uuid.uuid4()) + "_" + upload_file.filename
+        file_path = os.path.join("static", "uploads", unique_filename)
+        
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(upload_file.file, buffer)
+        
+        file_path = file_path.replace("\\", "/")
+        
+        file_paths.append(file_path)
+
+    new_content = Content(
+        name=content_names,
+        description=content_descriptions,
+        content_type=content_types,
+        content_path=file_paths,  
+        lesson_id=new_lesson.lesson_id,
+        course_content_id=course_content_id,
+        course_detail_id=course_detail_id
+    )
+    db.add(new_content)
+
+    db.commit()
+    return {"message": "Lesson and content created successfully"}
+
+def get_lessons_by_course_content(db: Session, course_content_id: int):
+    return db.query(Content).options(joinedload(Content.lesson)).filter(Content.course_content_id == course_content_id).all()
+
+@router.get("/content", response_model=None)
+async def get_lessons_and_content_based_on_content_id(
+    course_content_id: int,
+    db: Session = Depends(get_db)
+):
+    # Check if the course content exists
+    course_content = db.query(Course_content).filter(Course_content.id == course_content_id).first()
+    if not course_content:
+        raise HTTPException(status_code=404, detail="Course content not found")
+    
+    contents = get_lessons_by_course_content(db, course_content_id)
+    if not contents:
+        raise HTTPException(status_code=404, detail="No lessons found for this course content")
+    
+    base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+    result = []
+    
+    for content in contents:
+        
+        lesson_data = {
+            "lesson_id": content.lesson.lesson_id,  
+            "title": content.lesson.title,  
+            "description": content.lesson.description,  
+            "course_content_id": content.lesson.course_content_id,
+            "content_info": {  
+                "id": content.id,
+                "name": content.name,
+                "description": content.description,
+                "content_type": content.content_type,
+                "content_path": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
+            }
+        }
+        
+        result.append(lesson_data)
+    
+    return result
+
+########################################
+
+
     
 @router.get("/content/get_all", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def get_all_content(db: Session = Depends(get_db)):
@@ -76,7 +188,7 @@ async def get_all_content(db: Session = Depends(get_db)):
         if not contents:
             raise HTTPException(status_code=404, detail="No content found")
         
-        base_url_path = "http://192.168.29.82:8001"  # Your base URL path
+        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
 
         all_content_data = []
         for content in contents:
@@ -101,7 +213,7 @@ async def get_content_by_id(content_id: int, db: Session = Depends(get_db)):
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
-        base_url_path = "http://192.168.29.82:8001"  # Your base URL path
+        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
 
         content_data = {
             "id": content.id,

@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional
 import pytz
 from sqlalchemy import desc, func
+from ..models.course_detail import CourseDetails
 
 router = APIRouter()
 
@@ -268,6 +269,11 @@ def verify_payments_and_update_details(
         if  payment_info:
             user.is_payment_done = True
             db.add(user)
+            course_details = db.query(CourseDetails).filter(CourseDetails.user_id == user_id).first()
+       
+            course_details.is_active_course = True
+       
+            db.add(course_details)
             db.commit()
             response["is_payment_done"] = True
             response["message"] = "Payments verified. Students can access courses."

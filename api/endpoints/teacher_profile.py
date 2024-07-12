@@ -2,12 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from db.session import get_db
 from fastapi import Header
-from ..models import (Employee, TeacherContact, Dependents, Education, EmergencyContact,LanguagesSpoken, Skill, LmsUsers, Teacher)
+from ..models import (Employee, TeacherContact, Dependents, Education, EmergencyContact,LanguagesSpoken, Skill, LmsUsers, Teacher,TeacherCourse)
 from ..schemas import ( ContactInformationCreate, ContactInformationUpdate,EducationCreate, EducationUpdate, SkillCreate,SkillUpdate,
                         LanguagesSpokenCreate, LanguagesSpokenUpdate,EmergencyContactCreate, EmergencyContactUpdate,
-                       DependentsCreate, DependentsUpdate, EmployeeCreate,EmployeeUpdate, TeacherCreate, TeacherUpdate)
+                       DependentsCreate, DependentsUpdate, EmployeeCreate,EmployeeUpdate, TeacherCreate, TeacherUpdate, ContactInfoUpdate,TeacherUpdate1, 
+                       DependentUpdate, EducationUpdate1, EmergencyContactUpdate1, LanguagesSpokenUpdate1, SkillUpdate1)
 from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_or_teacher
 from typing import Optional
+from pydantic import BaseModel
+from datetime import date
 
 router = APIRouter()
 
@@ -321,96 +324,180 @@ def decrement_content_file_count(db: Session, teacher_id: int):
         if teacher.content_file_count > 0:
             teacher.content_file_count -= 1
             db.commit()
+            
 
-@router.put("/teachers/update/{Teacher_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
-async def update_teacher_profile(
-        Teacher_id: int,
-        teacher_data: Optional[TeacherUpdate] = None,
-        employee_data: Optional[EmployeeUpdate] = None,
-        teacher_contact_info: Optional[ContactInformationUpdate] = None,
-        dependent: Optional[DependentsUpdate] = None,
-        education: Optional[EducationUpdate] = None,
-        skill: Optional[SkillUpdate] = None,
-        emergency_contact: Optional[EmergencyContactUpdate] = None,
-        languages_spoken: Optional[LanguagesSpokenUpdate] = None,
-        db: Session = Depends(get_db),
-        current_user: LmsUsers = Depends(get_current_user)
+
+@router.put("/teachers/{teacher_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
+async def update_teacher(
+    teacher_id: int,
+    teacher_update_data: TeacherUpdate1,
+    contact_info: ContactInfoUpdate,
+    dependent: DependentUpdate,
+    education: EducationUpdate1,
+    emergency_contact: EmergencyContactUpdate1,
+    languages_spoken: LanguagesSpokenUpdate1,
+    skill: SkillUpdate1,
+    db: Session = Depends(get_db),
+    current_user: LmsUsers = Depends(get_current_user)
 ):
     try:
         # Check if the teacher exists
-        existing_teacher = get_teacher1(db, Teacher_id)
+        existing_teacher = db.query(Teacher).filter(Teacher.Teacher_id == teacher_id).first()
         if not existing_teacher:
             raise HTTPException(status_code=404, detail="Teacher not found")
 
-        # Helper function to handle conditional updates
-        def handle_update(model_instance, update_data):
-            for field, value in update_data.items():
-                if value is not None:
-                    setattr(model_instance, field, value)
+        # Update teacher details
+        if teacher_update_data.name is not None:
+            existing_teacher.name = teacher_update_data.name
+        if teacher_update_data.department is not None:
+            existing_teacher.department = teacher_update_data.department
 
-        # Update teacher data if provided
-        if teacher_data:
-            handle_update(existing_teacher, teacher_data.dict(exclude_unset=True))
+        db.add(existing_teacher)
 
-        # Fetch and update related data
-        existing_employee = get_employee(db, Teacher_id)
-        if employee_data and existing_employee:
-            handle_update(existing_employee, employee_data.dict(exclude_unset=True))
+        # Update teacher contact information
+        existing_teacher_contact = db.query(TeacherContact).filter(TeacherContact.Teacher_id == teacher_id).first()
+        if not existing_teacher_contact:
+            existing_teacher_contact = TeacherContact(teacher_id=teacher_id)
 
-        existing_contact_info = get_teacher_contact_info(db, Teacher_id)
-        if teacher_contact_info and existing_contact_info:
-            handle_update(existing_contact_info, teacher_contact_info.dict(exclude_unset=True))
+        if contact_info.primary_number is not None:
+            existing_teacher_contact.primary_number = contact_info.primary_number
+        if contact_info.secondary_number is not None:
+            existing_teacher_contact.secondary_number = contact_info.secondary_number
+        if contact_info.primary_email_id is not None:
+            existing_teacher_contact.primary_email_id = contact_info.primary_email_id
+        if contact_info.secondary_email_id is not None:
+            existing_teacher_contact.secondary_email_id = contact_info.secondary_email_id
+        if contact_info.current_address is not None:
+            existing_teacher_contact.current_address = contact_info.current_address
+        if contact_info.permanent_address is not None:
+            existing_teacher_contact.permanent_address = contact_info.permanent_address
 
-        existing_dependent = get_teacher_depends(db, Teacher_id)
-        if dependent and existing_dependent:
-            handle_update(existing_dependent, dependent.dict(exclude_unset=True))
+        db.add(existing_teacher_contact)
 
-        existing_education = get_teacher_education(db, Teacher_id)
-        if education and existing_education:
-            handle_update(existing_education, education.dict(exclude_unset=True))
+        # Update dependent details
+        existing_dependent = db.query(Dependents).filter(Dependents.Teacher_id == teacher_id).first()
+        if not existing_dependent:
+            raise HTTPException(status_code=404, detail="Dependent not found")
 
-        existing_skill = get_teacher_skills(db, Teacher_id)
-        if skill and existing_skill:
-            handle_update(existing_skill, skill.dict(exclude_unset=True))
+        if dependent.dependent_name is not None:
+            existing_dependent.dependent_name = dependent.dependent_name
+        if dependent.relation is not None:
+            existing_dependent.realtion = dependent.relation
+        if dependent.date_of_birth is not None:
+            existing_dependent.date_of_birth = dependent.date_of_birth
 
-        existing_emergency_contact = get_teacher_emergency_contact(db, Teacher_id)
-        if emergency_contact and existing_emergency_contact:
-            handle_update(existing_emergency_contact, emergency_contact.dict(exclude_unset=True))
+        db.add(existing_dependent)
 
-        existing_languages_spoken = get_teacher_language_spoken(db, Teacher_id)
-        if languages_spoken and existing_languages_spoken:
-            handle_update(existing_languages_spoken, languages_spoken.dict(exclude_unset=True))
+        # Update education details
+        existing_education = db.query(Education).filter(Education.Teacher_id == teacher_id).first()
+        if not existing_education:
+            raise HTTPException(status_code=404, detail="Education details not found")
 
-        # Commit the updates to the database
+        if education.education_level is not None:
+            existing_education.education_level = education.education_level
+        if education.institution is not None:
+            existing_education.institution = education.institution
+        if education.specialization is not None:
+            existing_education.specialization = education.specialization
+        if education.field_of_study is not None:
+            existing_education.field_of_study = education.field_of_study
+        if education.year_of_passing is not None:
+            existing_education.year_of_passing = education.year_of_passing
+        if education.percentage is not None:
+            existing_education.percentage = education.percentage
+
+        db.add(existing_education)
+
+        # Update emergency contact details
+        existing_emergency_contact = db.query(EmergencyContact).filter(EmergencyContact.Teacher_id == teacher_id).first()
+        if not existing_emergency_contact:
+            raise HTTPException(status_code=404, detail="Emergency contact details not found")
+
+        if emergency_contact.emergency_contact_name is not None:
+            existing_emergency_contact.emergency_contact_name = emergency_contact.emergency_contact_name
+        if emergency_contact.relation is not None:
+            existing_emergency_contact.relation = emergency_contact.relation
+        if emergency_contact.emergency_contact_number is not None:
+            existing_emergency_contact.emergency_contact_number = emergency_contact.emergency_contact_number
+
+        db.add(existing_emergency_contact)
+
+        # Update languages spoken
+        existing_languages_spoken = db.query(LanguagesSpoken).filter(LanguagesSpoken.Teacher_id == teacher_id).first()
+        if not existing_languages_spoken:
+            raise HTTPException(status_code=404, detail="Languages spoken details not found")
+
+        if languages_spoken.languages is not None:
+            existing_languages_spoken.languages = languages_spoken.languages
+
+        db.add(existing_languages_spoken)
+
+        # Update skills
+        existing_skill = db.query(Skill).filter(Skill.Teacher_id == teacher_id).first()
+        if not existing_skill:
+            raise HTTPException(status_code=404, detail="Skills details not found")
+
+        if skill.skill is not None:
+            existing_skill.skill = skill.skill
+        if skill.certification is not None:
+            existing_skill.certification = skill.certification
+        if skill.license is not None:
+            existing_skill.license = skill.license
+
+        db.add(existing_skill)
+
         db.commit()
+        db.refresh(existing_teacher)
 
-        # Fetch the updated data
-        updated_teacher = get_teacher1(db, Teacher_id)
-        updated_employee = get_employee(db, Teacher_id)
-        updated_contact_info = get_teacher_contact_info(db, Teacher_id)
-        updated_dependent = get_teacher_depends(db, Teacher_id)
-        updated_education = get_teacher_education(db, Teacher_id)
-        updated_skill = get_teacher_skills(db, Teacher_id)
-        updated_emergency_contact = get_teacher_emergency_contact(db, Teacher_id)
-        updated_languages_spoken = get_teacher_language_spoken(db, Teacher_id)
-
-
-        return {
-            "Teacher_data": updated_teacher,
-            "employee_data": updated_employee,
-            "contact_info": updated_contact_info,
-            "dependent": updated_dependent,
-            "education": updated_education,
-            "skill": updated_skill,
-            "emergency_contact": updated_emergency_contact,
-            "languages_spoken": updated_languages_spoken
+        # Prepare response data
+        response_data = {
+            "teacher_id": existing_teacher.Teacher_id,
+            "user_id":existing_teacher.user_id,
+            "name": existing_teacher.name,
+            "email": existing_teacher.email,
+            "department": existing_teacher.department,
+            "contact_info": {
+                "primary_number": existing_teacher_contact.primary_number,
+                "secondary_number": existing_teacher_contact.secondary_number,
+                "primary_email_id": existing_teacher_contact.primary_email_id,
+                "secondary_email_id": existing_teacher_contact.secondary_email_id,
+                "current_address": existing_teacher_contact.current_address,
+                "permanent_address": existing_teacher_contact.permanent_address
+            },
+            "dependent": {
+                "dependent_name": existing_dependent.dependent_name,
+                "relation": existing_dependent.realtion,
+                "date_of_birth": existing_dependent.date_of_birth
+            },
+            "education": {
+                "education_level": existing_education.education_level,
+                "institution": existing_education.institution,
+                "specialization": existing_education.specialization,
+                "field_of_study": existing_education.field_of_study,
+                "year_of_passing": existing_education.year_of_passing,
+                "percentage": existing_education.percentage
+            },
+            "emergency_contact": {
+                "emergency_contact_name": existing_emergency_contact.emergency_contact_name,
+                "emergency_relation": existing_emergency_contact.relation,
+                "emergency_contact_number": existing_emergency_contact.emergency_contact_number
+            },
+            "languages_spoken": {
+                "languages": existing_languages_spoken.languages
+            },
+            "skill": {
+                "skill": existing_skill.skill,
+                "certification": existing_skill.certification,
+                "license": existing_skill.license
+            }
         }
+
+        return response_data
     except Exception as e:
+    
         raise HTTPException(status_code=500, detail=f"Failed to update teacher details: {str(e)}")
 
-
-
-@router.delete("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
+@router.delete("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_teacher(user_id: int, db: Session = Depends(get_db)):
     try:
         # Check if the teacher exists

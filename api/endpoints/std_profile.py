@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
 from db.session import get_db, SessionLocal
 from ..models import Student, ContactInformation, PreEducation, Parent, LmsUsers, Inquiry, DemoFormFill, CourseDetails,Course, Standard, module,Subject, Module, Payment
-from ..schemas import (StudentContactCreate, PreEducationCreate, ParentCreate,  StudentUpdate,
-                       StudentContactUpdate, PreEducationUpdate, ParentInfoUpdate, CourseDetailsCreate, CourseDetailsUpdate)
+from ..schemas import (StudentContactCreate, PreEducationCreate, ParentCreate,
+                       StudentContactUpdate, PreEducationUpdate, ParentInfoUpdate, CourseDetailsCreate, CourseDetailsUpdate,StudentUpdate_data, ContactInfoUpdate_data,
+                       PreEducationUpdate_data, ParentInfoUpdate_data)
 from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_or_student
 #from ..models.Students import save_upload
-from ..schemas import StudentCreate, StudentUpdate
+from ..schemas import StudentCreate ,StudentUpdate#StudentUpdate_all_data
 from datetime import datetime
 from typing import List, Union
 from sqlalchemy import desc
@@ -20,8 +21,11 @@ import pytz
 from .Email_config import send_email
 import bcrypt
 from pydantic import EmailStr, BaseModel
+from ..models.courses_content import Course_content
+from dotenv import load_dotenv
 
 
+load_dotenv()
 router = APIRouter()
 
 
@@ -310,13 +314,25 @@ async def fill_admission_form(
         db.add(db_parent_info)
 
         
+        admin_course = db.query(Course_content).filter(
+            Course_content.course_id == course,
+            Course_content.standard_id == standard,
+            Course_content.subject_id == subject,
+            Course_content.module_id == module,
+            Course_content.is_active == True
+            ).first()
+        if not admin_course:
+            raise HTTPException(status_code=404, detail="Selected course not found or not active. Please choose a valid course.")
+        
         # Create course details record
         db_course_details = CourseDetails(
             subjects=subject,
             standards=standard,
             modules=module,
             courses=course,
-            students=db_student.id
+            students=db_student.id,
+            user_id = current_user.user_id, 
+            course_content_id=admin_course.id
         )
         
         db.add(db_course_details)
@@ -327,10 +343,6 @@ async def fill_admission_form(
         db.add(current_user)
 
         db.commit()
-
-        # Generate unique URL for parent
-        #unique_id = str(uuid.uuid4())
-        #verification_url = f"http://192.168.29.82:8000/verify_parent/{unique_id}"
 
         # Send email to parent
         email_body = f"""
@@ -352,11 +364,11 @@ async def fill_admission_form(
         )
         return {"message": "Admission form has been submitted successfully"}
 
-    except Exception as e:
+    except Exception :
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to submit admission form: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit admission form")
 
-base_url_path = "http://192.168.29.82:8001"
+base_url_path = os.getenv("BASE_URL_PATH")
 
 @router.get("/admission/get_all", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def get_all_admissions(db: Session = Depends(get_db)):
@@ -515,39 +527,14 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Failed to fetch student admission form: {str(e)}")
 
 
-
-@router.put("/admission/{student_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_student)])
+@router.put("/admission/{student_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_current_user)])
 async def update_admission_form(
     student_id: int,
-    first_name: str = Form(None),
-    middle_name: str = Form(None),
-    last_name: str = Form(None),
-    date_of_birth: date = Form(None), 
-    gender: str = Form(None),
-    nationality: str = Form(None),
-    referral: str = Form(None),
-    date_of_joining: date = Form(None),  
-    date_of_completion: date = Form(None),  
-    primary_no: str = Form(None),
-    secondary_no: str = Form(None),
-    primary_email: str = Form(None),
-    secondary_email: str = Form(None),
-    current_address: str = Form(None),
-    permanent_address: str = Form(None),
-    student_class: str = Form(None),
-    school: str = Form(None),
-    year_of_passing: int = Form(None),
-    percentage: float = Form(None),
-    p_first_name: str = Form(None),
-    p_middle_name: str = Form(None),
-    p_last_name: str = Form(None),
-    guardian: str = Form(None),
-    subject: str = Form(None),
-    standard: str = Form(None),
-    module: str = Form(None),
-    course: str = Form(None),
-    id_proof: UploadFile = File(default=None),
-    address_proof: UploadFile = File(default=None),
+    student_update: StudentUpdate_data,
+    contact_info:ContactInfoUpdate_data,
+    pre_education:PreEducationUpdate_data,
+    parent_info:ParentInfoUpdate_data,
+
     db: Session = Depends(get_db),
     current_user: LmsUsers = Depends(get_current_user)
 ):
@@ -557,168 +544,126 @@ async def update_admission_form(
         if not existing_student:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Convert date strings to datetime objects
-        # if date_of_birth:
-        #     try:
-        #         date_of_birth = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
-        #     except ValueError:
-        #         raise HTTPException(status_code=422, detail="Invalid date format for date_of_birth")
-
-        # if date_of_joining:
-        #     try:
-        #         date_of_joining = datetime.strptime(date_of_joining, "%Y-%m-%d").date()
-        #     except ValueError:
-        #         raise HTTPException(status_code=422, detail="Invalid date format for date_of_joining")
-
-        # if date_of_completion:
-        #     try:
-        #         date_of_completion = datetime.strptime(date_of_completion, "%Y-%m-%d").date()
-        #     except ValueError:
-        #         raise HTTPException(status_code=422, detail="Invalid date format for date_of_completion")
-
-        # Check if the student exists
-        existing_student = db.query(Student).filter(Student.id == student_id).first()
-        if not existing_student:
-            raise HTTPException(status_code=404, detail="Student not found")
-
         # Update student details
-        if first_name is not None:
-            existing_student.first_name = first_name
-        if middle_name is not None:
-            existing_student.middle_name = middle_name
-        if last_name is not None:
-            existing_student.last_name = last_name
-        if date_of_birth is not None:
-            existing_student.date_of_birth = date_of_birth
-        if gender is not None:
-            existing_student.gender = gender
-        if nationality is not None:
-            existing_student.nationality = nationality
-        if referral is not None:
-                existing_student.referral = referral
-        if date_of_joining is not None:
-            existing_student.date_of_joining = date_of_joining
-        if date_of_completion is not None:
-            existing_student.date_of_completion = date_of_completion
-        if id_proof is not None:
-            existing_student.id_proof = save_upload_file(id_proof)
-        if address_proof is not None:
-            existing_student.Address_proof = save_upload_file(address_proof)
-
-        # Update contact information
-        existing_contact_info = db.query(ContactInformation).filter(ContactInformation.student_id == student_id).first()
-        if existing_contact_info:
-            if primary_no is not None:
-                existing_contact_info.primary_no = primary_no
-            if secondary_no is not None:
-                existing_contact_info.secondary_no = secondary_no
-            if primary_email is not None:
-                existing_contact_info.primary_email = primary_email
-            if secondary_email is not None:
-                existing_contact_info.secondary_email = secondary_email
-            if current_address is not None:
-                existing_contact_info.current_address = current_address
-            if permanent_address is not None:
-                existing_contact_info.permanent_address = permanent_address
-
-        # Update pre-education details
-        existing_pre_education = db.query(PreEducation).filter(PreEducation.student_id == student_id).first()
-        if existing_pre_education:
-            if student_class is not None:
-                existing_pre_education.student_class = student_class
-            if school is not None:
-                existing_pre_education.school = school
-            if year_of_passing is not None:
-                existing_pre_education.year_of_passing = year_of_passing
-            if percentage is not None:
-                existing_pre_education.percentage = percentage
-
-        # Update parent information
-        existing_parent_info = db.query(Parent).filter(Parent.student_id == student_id).first()
-        if existing_parent_info:
-            if p_first_name is not None:
-                existing_parent_info.p_first_name = p_first_name
-            if p_middle_name is not None:
-                existing_parent_info.p_middle_name = p_middle_name
-            if p_last_name is not None:
-                existing_parent_info.p_last_name = p_last_name
-            if guardian is not None:
-                existing_parent_info.guardian = guardian
-            if primary_no is not None:
-                existing_parent_info.primary_no = primary_no
-            if secondary_no is not None:
-                existing_parent_info.secondary_no = secondary_no
-            if primary_email is not None:
-                existing_parent_info.primary_email = primary_email
-            if secondary_email is not None:
-                existing_parent_info.secondary_email = secondary_email
-
-        # Update course details
-        existing_course_details = db.query(CourseDetails).filter(CourseDetails.students == student_id).first()
-        if existing_course_details:
-            if subject is not None:
-                existing_course_details.subject = subject
-            if standard is not None:
-                existing_course_details.standard = standard
-            if module is not None:
-                existing_course_details.module = module
-            if course is not None:
-                existing_course_details.course = course
-
+        if student_update.first_name is not None:
+            existing_student.first_name = student_update.first_name
+        if student_update.middle_name is not None:
+            existing_student.middle_name = student_update.middle_name
+        if student_update.last_name is not None:
+            existing_student.last_name = student_update.last_name
+        if student_update.date_of_birth is not None:
+            existing_student.date_of_birth = student_update.date_of_birth
+        if student_update.gender is not None:
+            existing_student.gender = student_update.gender
+        if student_update.nationality is not None:
+            existing_student.nationality = student_update.nationality
+        if student_update.referral is not None:
+            existing_student.referral = student_update.referral
+        if student_update.date_of_joining is not None:
+            existing_student.date_of_joining = student_update.date_of_joining
+        if student_update.date_of_completion is not None:
+            existing_student.date_of_completion = student_update.date_of_completion
+        db.add(existing_student)
         db.commit()
 
+        # Update contact information
+       
+        existing_contact_info = db.query(ContactInformation).filter(ContactInformation.student_id == student_id).first()
+        if not existing_contact_info:
+            raise HTTPException(status_code=404, detail="Student contact_info not found")
         
-        updated_data = {
-            "student": {
-                "first_name": existing_student.first_name,
-                "middle_name": existing_student.middle_name,
-                "last_name": existing_student.last_name,
-                "date_of_birth": existing_student.date_of_birth,
-                "gender": existing_student.gender,
-                "nationality": existing_student.nationality,
-                "referral": existing_student.referral,
-                "date_of_joining": existing_student.date_of_joining,
-                "date_of_completion": existing_student.date_of_completion,
-                "id_proof": existing_student.id_proof,
-                "address_proof": existing_student.Address_proof,
-            },
+        if contact_info.primary_no is not None:
+                    existing_contact_info.primary_no = contact_info.primary_no
+        if contact_info.secondary_no is not None:
+                    existing_contact_info.secondary_no = contact_info.secondary_no
+        if contact_info.primary_email is not None:
+                    existing_contact_info.primary_email = contact_info.primary_email
+        if contact_info.secondary_email is not None:
+                    existing_contact_info.secondary_email = contact_info.secondary_email
+        if contact_info.current_address is not None:
+                    existing_contact_info.current_address = contact_info.current_address
+        if contact_info.permanent_address is not None:
+                    existing_contact_info.permanent_address = contact_info.permanent_address
+        db.add(existing_contact_info)
+        db.commit()    
+        # Update pre-education details
+        existing_pre_education = db.query(PreEducation).filter(PreEducation.student_id == student_id).first()
+        if not existing_pre_education:
+            raise HTTPException(status_code=404, detail="Student pre_education not found")
+        
+        if pre_education.student_class is not None:
+                    existing_pre_education.student_class = pre_education.student_class
+        if pre_education.school is not None:
+                    existing_pre_education.school = pre_education.school
+        if pre_education.year_of_passing is not None:
+                    existing_pre_education.year_of_passing = pre_education.year_of_passing
+        if pre_education.percentage is not None:
+                    existing_pre_education.percentage = pre_education.percentage
+        db.add(existing_pre_education)
+        db.commit()
+        
+        # Update parent information
+        existing_parent_info = db.query(Parent).filter(Parent.student_id == student_id).first()
+        if not existing_pre_education:
+            raise HTTPException(status_code=404, detail="Student pre_education not found")
+        
+        if parent_info.p_first_name is not None:
+                    existing_parent_info.p_first_name = parent_info.p_first_name
+        if parent_info.p_middle_name is not None:
+                    existing_parent_info.p_middle_name = parent_info.p_middle_name
+        if parent_info.p_last_name is not None:
+                    existing_parent_info.p_last_name = parent_info.p_last_name
+        if parent_info.guardian is not None:
+                    existing_parent_info.guardian = parent_info.guardian
+        if parent_info.primary_no is not None:
+                    existing_parent_info.primary_no = parent_info.primary_no
+        if parent_info.primary_email is not None:
+                    existing_parent_info.primary_email = parent_info.primary_email
+        db.add(existing_parent_info)   
+        db.commit()
+
+        # Prepare response data
+        response_data = {
+            "student_id": existing_student.id,
+            "first_name": existing_student.first_name,
+            "middle_name": existing_student.middle_name,
+            "last_name": existing_student.last_name,
+            "date_of_birth": existing_student.date_of_birth,
+            "gender": existing_student.gender,
+            "nationality": existing_student.nationality,
+            "referral": existing_student.referral,
+            "date_of_joining": existing_student.date_of_joining,
+            "date_of_completion": existing_student.date_of_completion,
             "contact_info": {
-                "primary_no": existing_contact_info.primary_no if existing_contact_info else None,
-                "secondary_no": existing_contact_info.secondary_no if existing_contact_info else None,
-                "primary_email": existing_contact_info.primary_email if existing_contact_info else None,
-                "secondary_email": existing_contact_info.secondary_email if existing_contact_info else None,
-                "current_address": existing_contact_info.current_address if existing_contact_info else None,
-                "permanent_address": existing_contact_info.permanent_address if existing_contact_info else None,
+                "primary_no": existing_contact_info.primary_no,
+                "secondary_no": existing_contact_info.secondary_no,
+                "primary_email": existing_contact_info.primary_email,
+                "secondary_email": existing_contact_info.secondary_email,
+                "current_address": existing_contact_info.current_address,
+                "permanent_address": existing_contact_info.permanent_address
             },
             "pre_education": {
-                "student_class": existing_pre_education.student_class if existing_pre_education else None,
-                "school": existing_pre_education.school if existing_pre_education else None,
-                "year_of_passing": existing_pre_education.year_of_passing if existing_pre_education else None,
-                "percentage": existing_pre_education.percentage if existing_pre_education else None,
+                "student_class": existing_student.pre_education.student_class,
+                "school": existing_student.pre_education.school,
+                "year_of_passing": existing_student.pre_education.year_of_passing,
+                "percentage": existing_student.pre_education.percentage
             },
-            "parent_information": {
-                "p_first_name": existing_parent_info.p_first_name if existing_parent_info else None,
-                "p_middle_name": existing_parent_info.p_middle_name if existing_parent_info else None,
-                "p_last_name": existing_parent_info.p_last_name if existing_parent_info else None,
-                "guardian": existing_parent_info.guardian if existing_parent_info else None,
-                "primary_no": existing_parent_info.primary_no if existing_parent_info else None,
-                "secondary_no": existing_parent_info.secondary_no if existing_parent_info else None,
-                "primary_email": existing_parent_info.primary_email if existing_parent_info else None,
-                "secondary_email": existing_parent_info.secondary_email if existing_parent_info else None,
-            },
-            "course_details":{
-                "subject":existing_course_details.subject if existing_course_details else None,
-                "standard":existing_course_details.standard if existing_course_details else None,
-                "module":existing_course_details.module if existing_course_details else None,
-                "course":existing_course_details.course if existing_course_details else None,
-                
+            "parent_info": {
+                "p_first_name": existing_student.parent_info.p_first_name,
+                "p_middle_name": existing_student.parent_info.p_middle_name,
+                "p_last_name": existing_student.parent_info.p_last_name,
+                "guardian": existing_student.parent_info.guardian,
+                "primary_no": existing_student.parent_info.primary_no,
+                "primary_email": existing_student.parent_info.primary_email
             }
         }
-        return updated_data
+
+        return response_data
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update student admission form: {str(e)}")
-
-
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
 @router.delete("/admission/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_admission_form(user_id: int, db: Session = Depends(get_db)):
     try:

@@ -9,7 +9,13 @@ import uuid
 import shutil
 from ..models.announcement import Announcement
 from typing import Optional
+from datetime import datetime
+import pytz
+import re
+from dotenv import load_dotenv
 
+
+load_dotenv()
 router = APIRouter()
 
 def save_upload_file(upload_file: Optional[UploadFile]) -> Optional[str]:
@@ -46,7 +52,9 @@ async def create_content(
             announcement_text=announcement_text,
             announcement_images=announcement_images_path
         )
-
+        utc_now = pytz.utc.localize(datetime.utcnow())
+        ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+        db_announcement.created_on = ist_now
         db.add(db_announcement)
         db.commit()
         db.refresh(db_announcement)
@@ -62,7 +70,7 @@ async def get_announcement(announcement_id: int, db: Session = Depends(get_db)):
         if not announcement:
             raise HTTPException(status_code=404, detail="Announcement not found")
 
-        base_url_path = "http://192.168.29.82:8001"  # Your base URL path
+        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
 
         announcement_images_path = announcement.announcement_images
         if announcement_images_path:
@@ -80,6 +88,36 @@ async def get_announcement(announcement_id: int, db: Session = Depends(get_db)):
         return announcement_response
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to fetch an announcement")
+    
+@router.get("/announcements", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_student_teacher_parent)])
+async def get_all_announcements(db: Session = Depends(get_db)):
+    try:
+        announcements = db.query(Announcement).all()
+        if not announcements:
+            raise HTTPException(status_code=404, detail="No announcements found")
+
+        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+
+        announcements_response = []
+        for announcement in announcements:
+            announcement_images_path = announcement.announcement_images
+            if announcement_images_path:
+                announcement_images_url = f"{base_url_path}/{announcement_images_path}"
+            else:
+                announcement_images_url = None
+
+            announcement_response = {
+                "id": announcement.id,
+                "title": announcement.title,
+                "announcement_text": announcement.announcement_text,
+                "announcement_images": announcement_images_url,
+                "created_on": announcement.created_on
+            }
+            announcements_response.append(announcement_response)
+
+        return announcements_response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to fetch announcements")
 
 @router.put("/announcement/{announcement_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def update_announcement(
@@ -111,7 +149,7 @@ async def update_announcement(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update announcement: {str(e)}")
 
-    base_url_path = "http://192.168.29.82:8001"  # Your base URL path
+    base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
     announcement_images_url = f"{base_url_path}/{announcement.announcement_images}" if announcement.announcement_images else None
 
     return {
