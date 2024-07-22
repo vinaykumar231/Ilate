@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+import json
 import os
 from ..models.Teacher import Teacher
 from ..models import Lesson
@@ -14,15 +15,19 @@ import os
 import uuid
 import shutil
 from pydantic import BaseModel
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload 
 from ..models. courses_content import Course_content
 import os
 from dotenv import load_dotenv
+from ..models import Course, TeacherCourse
+from sqlalchemy import and_
 
 
 load_dotenv()
 
 router = APIRouter()
+
+############################ post only content in content table #########################
 
 @router.post("/content/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def create_content(
@@ -69,45 +74,54 @@ async def create_content(
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert content")
 
-###########################################
+############################ post  content and lession in content and lession table #########################
 class ContentResponse(BaseModel):
     id: int
     name: str
     description: str
-    content_type: str
     content_path: List[str]
+
+    class Config:
+        from_attributes = True
 
 class LessonResponse(BaseModel):
     lesson_id: int
     title: str
-    description: str
-    module_id: int
     contents: List[ContentResponse]
+
+    class Config:
+        from_attributes = True
 
 @router.post("/content/with_lesson", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def create_lesson_and_content(
     course_content_id: int = Form(...),
-    course_detail_id: Optional[int] = Form(None),
     lesson_title: str = Form(...),
-    lesson_description: str = Form(...),
-    content_names: str = Form(...),
     content_descriptions: str = Form(...),
-    content_types: str = Form(...),
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
-    # Check if the course content exists
-    course_content = db.query(Course_content).filter(Course_content.id == course_content_id).first()
-    if not course_content:
-        raise HTTPException(status_code=404, detail="Course content_id not found")
+    # Check if the course content exists and is associated with an assigned course
+    course_content = db.query(Course_content).join(
+        Course,
+        Course.id == Course_content.course_id
+    ).join(
+        TeacherCourse,
+        and_(
+            TeacherCourse.course_id == Course.id,
+            TeacherCourse.is_assign_course == True
+        )
+    ).filter(Course_content.id == course_content_id).first()
 
+    if not course_content:
+        raise HTTPException(status_code=404, detail="No assigned course content found for the given ID")
+
+    # Create new lesson
     new_lesson = Lesson(
         title=lesson_title,
-        description=lesson_description,
-        course_content_id=course_content_id
+        course_content_id=course_content.id
     )
     db.add(new_lesson)
-    db.flush()  
+    db.flush()
 
     file_paths = []
     for upload_file in files:
@@ -120,22 +134,21 @@ async def create_lesson_and_content(
             shutil.copyfileobj(upload_file.file, buffer)
         
         file_path = file_path.replace("\\", "/")
-        
         file_paths.append(file_path)
 
     new_content = Content(
-        name=content_names,
-        description=content_descriptions,
-        content_type=content_types,
+        content_description=content_descriptions,
         content_path=file_paths,  
         lesson_id=new_lesson.lesson_id,
-        course_content_id=course_content_id,
-        course_detail_id=course_detail_id
+        course_content_id=course_content.id  
     )
     db.add(new_content)
 
     db.commit()
     return {"message": "Lesson and content created successfully"}
+
+############################### get lession and content baase on course_content_id from course_content table  #######################
+
 
 def get_lessons_by_course_content(db: Session, course_content_id: int):
     return db.query(Content).options(joinedload(Content.lesson)).filter(Content.course_content_id == course_content_id).all()
@@ -162,13 +175,13 @@ async def get_lessons_and_content_based_on_content_id(
         lesson_data = {
             "lesson_id": content.lesson.lesson_id,  
             "title": content.lesson.title,  
-            "description": content.lesson.description,  
+            #"description": content.lesson.description,  
             "course_content_id": content.lesson.course_content_id,
             "content_info": {  
                 "id": content.id,
-                "name": content.name,
-                "description": content.description,
-                "content_type": content.content_type,
+                #"name": content.name,
+                "description": content.content_description,
+                #"content_type": content.course_content_type,
                 "content_path": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
             }
         }
@@ -194,9 +207,9 @@ async def get_all_content(db: Session = Depends(get_db)):
         for content in contents:
             content_data = {
                 "id": content.id,
-                "name": content.name,
-                "description": content.description,
-                "content_type": content.content_type,
+                #"name": content.name,
+                "description": content.content_description,
+                #"content_type": content.content_type,
                 "lesson_id": content.lesson_id,
                 "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
             }
@@ -217,9 +230,9 @@ async def get_content_by_id(content_id: int, db: Session = Depends(get_db)):
 
         content_data = {
             "id": content.id,
-            "name": content.name,
-            "description": content.description,
-            "content_type": content.content_type,
+            #"name": content.name,
+            "description": content.content_description,
+            #"content_type": content.content_type,
             "lesson_id": content.lesson_id,
             "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
         }

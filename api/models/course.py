@@ -20,6 +20,4 @@ class Course(Base):
     payments = relationship("Payment", back_populates="course")
    # student = relationship("Student",uselist=False, back_populates="course")
 
-    teacher_by = relationship("TeacherCourse", back_populates="course_Assign")
-
     course_contents = relationship("Course_content", back_populates="course")

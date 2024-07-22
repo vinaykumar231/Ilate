@@ -44,3 +44,4 @@ from .mail import Mail
 from .announcement import Announcement
 from .teacher_course import TeacherCourse
 from .courses_content import Course_content
+from .attendance import Attendance

@@ -920,3 +920,22 @@ class CourseCreateWithHierarchy1(BaseModel):
     description: Optional[str]
     standards: List[StandardCreate1]
 
+
+################################ for attendence ######################
+class AttendanceStatus(str, Enum):
+    absent = "absent"
+    present = "present"
+
+class AttendanceCreate(BaseModel):
+    date: date
+    status: AttendanceStatus
+
+class AttendanceResponse(BaseModel):
+    id: int
+    student_id: int
+    date: date
+    status: AttendanceStatus
+
+    class Config:
+        orm_mode = True
+

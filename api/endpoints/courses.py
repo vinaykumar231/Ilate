@@ -18,12 +18,15 @@ import shutil
 from ..models.courses_content import Course_content
 from sqlalchemy.exc import IntegrityError
 from dotenv import load_dotenv
+from sqlalchemy import distinct
+from sqlalchemy.orm import joinedload
+from datetime import datetime
 
 
 load_dotenv()
 router = APIRouter()
 
-###################### create course by admin with Hierarchy ########################
+###################### create course by admin with Hierarchy (course, standard, subject, module) ########################
 
 @router.post("/courses_create/", response_model=dict, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Session = Depends(get_db)):
@@ -144,7 +147,231 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create/update course hierarchy: {str(e)}")
 
+##################### only for create standard, subject, module ##########################################
+
+class ModuleCreate(BaseModel):
+    module_name: str
+
+class SubjectCreate(BaseModel):
+    subject_name: str
+    modules: List[ModuleCreate]
+
+class StandardCreate(BaseModel):
+    standard_name: str
+    subjects: List[SubjectCreate]
+
+class HierarchyCreate(BaseModel):
+    standards: List[StandardCreate]
+@router.post("/course/{course_id}/add_hierarchy", response_model=dict)
+def add_hierarchy_to_course(course_id: int, hierarchy_data: HierarchyCreate, db: Session = Depends(get_db)):
+    standards_created = 0
+    subjects_created = 0
+    modules_created = 0
+    course_contents_created = 0
+
+    try:
+        # Check if the course exists
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+
+        for standard_data in hierarchy_data.standards:
+            # Create or get existing standard
+            standard = db.query(Standard).filter(
+                Standard.name == standard_data.standard_name,
+                Standard.course_id == course.id
+            ).first()
+            if not standard:
+                standard = Standard(name=standard_data.standard_name, course_id=course.id)
+                db.add(standard)
+                db.flush()
+                standards_created += 1
+
+            for subject_data in standard_data.subjects:
+                # Create or get existing subject
+                subject = db.query(Subject).filter(
+                    Subject.name == subject_data.subject_name,
+                    Subject.standard_id == standard.id
+                ).first()
+                if not subject:
+                    subject = Subject(name=subject_data.subject_name, standard_id=standard.id)
+                    db.add(subject)
+                    db.flush()
+                    subjects_created += 1
+
+                for module_data in subject_data.modules:
+                    # Create or get existing module
+                    module = db.query(Module).filter(
+                        Module.name == module_data.module_name,
+                        Module.subject_id == subject.id
+                    ).first()
+                    if not module:
+                        module = Module(name=module_data.module_name, subject_id=subject.id)
+                        db.add(module)
+                        db.flush()
+                        modules_created += 1
+
+                    # Create Course_content entry if it doesn't exist
+                    existing_content = db.query(Course_content).filter(
+                        Course_content.course_id == course.id,
+                        Course_content.standard_id == standard.id,
+                        Course_content.subject_id == subject.id,
+                        Course_content.module_id == module.id
+                    ).first()
+
+                    if not existing_content:
+                        new_content = Course_content(
+                            course_id=course.id,
+                            subject_id=subject.id,
+                            standard_id=standard.id,
+                            module_id=module.id,
+                            is_active=True
+                        )
+                        db.add(new_content)
+                        course_contents_created += 1
+
+        # Commit the transaction
+        db.commit()
+
+        return {
+            "message": "Hierarchy added to course successfully",
+            "course_id": course.id,
+            "course_name": course.name,
+            "standard_name": standard.name,
+            "subject_name": subject.name,
+            "module_name": module.name,
+        }
+
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Integrity error: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to add hierarchy to course: {str(e)}")
     
+
+################################# get hreachy from different table bsed on  deidicated course table course id ###########################################################
+
+class RelatedCourseDetail(BaseModel):
+    id: int
+    standard_name: str
+    subject_name: str
+    module_name: str
+
+class CourseResponse(BaseModel):
+    id: int
+    name: str
+    description: str
+    related_course_details: List[RelatedCourseDetail]
+
+@router.get("/course/{course_id}", response_model=CourseResponse)
+def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
+    # Query the course with all related data
+    course = db.query(Course).options(
+        joinedload(Course.standards)
+        .joinedload(Standard.subject)  # Changed from 'subject' to 'subjects'
+        .joinedload(Subject.modules)
+    ).filter(Course.id == course_id).first()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Query course_content separately
+    course_contents = db.query(Course_content).filter(Course_content.course_id == course_id).all()
+    content_map = {(c.standard_id, c.subject_id, c.module_id): c for c in course_contents}
+    
+    # Construct the response
+    related_course_details = []
+
+    for standard in course.standards:
+        for subject in standard.subject:  
+            for module in subject.modules:
+                content = content_map.get((standard.id, subject.id, module.id))
+                if content:
+                    related_course_details.append(RelatedCourseDetail(
+                        id=content.id,
+                        standard_name=standard.name,
+                        subject_name=subject.name,
+                        module_name=module.name
+                    ))
+    
+    course_response = CourseResponse(
+        id=course.id,
+        name=course.name,
+        description=course.description,
+        related_course_details=related_course_details
+    )
+    
+    return course_response
+
+################################# get hreachy from different course and course_content table ###########################################################
+
+@router.get("/course/{course_id}/content/{admin_course_id}", response_model=None)
+def get_course_content_detail(course_id: int, admin_course_id: int, db: Session = Depends(get_db)):
+    # Query the course content with all related data
+    course_content = db.query(Course_content).options(
+        #joinedload(Course_content.course),
+        joinedload(Course_content.standard),
+        joinedload(Course_content.subject),
+        joinedload(Course_content.module)
+    ).filter(
+        Course_content.id == admin_course_id,
+        Course_content.course_id == course_id
+    ).first()
+
+    if not course_content:
+        raise HTTPException(status_code=404, detail="Course content not found")
+    
+
+    data={
+        "admin_course_id":course_content.id,
+        "curse_id": course_content.course_id,
+        "course_name":course_content.course.name,
+        "standard_name":course_content.standard.name,
+        "standard_id":course_content.standard.id,
+        "subject_name":course_content.subject.name,
+        "subject_id":course_content.subject.id,
+        "module_name":course_content.module.name,
+        "module_id":course_content.module.id
+    }
+    
+    return data
+############################### get data hirarchy besed on course id from the content table course_id ###############
+
+@router.get("/course/{course_id}/content", response_model=List[dict])
+def get_course_content_detail_course_id (course_id: int, db: Session = Depends(get_db)):
+    # Query all course content entries for the given course ID
+    course_contents = db.query(Course_content).options(
+        joinedload(Course_content.course),
+        joinedload(Course_content.standard),
+        joinedload(Course_content.subject),
+        joinedload(Course_content.module)
+    ).filter(
+        Course_content.course_id == course_id
+    ).all()
+
+    if not course_contents:
+        raise HTTPException(status_code=404, detail="No course content found for this course")
+
+    # Prepare the response data
+    data = []
+    for content in course_contents:
+        content_data = {
+            "admin_course_id": content.id,
+            "course_id": content.course_id,
+            "course_name": content.course.name,
+            "standard_name": content.standard.name,
+            "standard_id": content.standard.id,
+            "subject_name": content.subject.name,
+            "subject_id": content.subject.id,
+            "module_name": content.module.name,
+            "module_id": content.module.id
+        }
+        data.append(content_data)
+
+    return data
+
+
  #########################################################################################################################   
  
 class CourseBase(BaseModel):
@@ -420,8 +647,6 @@ def read_all_courses(db: Session = Depends(get_db)):
         return db.query(Course).all()
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch courses")
-
-from sqlalchemy import distinct
 
 
 @router.get("/courses/unique", response_model=None)

@@ -29,7 +29,7 @@ class CourseDetails(Base):
 
     lessons = relationship("Lesson", back_populates="course_detail")
 
-    content = relationship('Content', back_populates='course_detail')
+    #content = relationship('Content', back_populates='course_detail')
 
     course_contents = relationship("Course_content", back_populates="course_details")
 

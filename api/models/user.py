@@ -27,6 +27,8 @@ class LmsUsers(Base):
     deleted_on = Column(DateTime)
     is_payment_done = Column(Boolean, server_default='0', nullable=False)
     is_formsubmited = Column(Boolean, server_default='0', nullable=False)
+    reset_otp = Column(Integer)
+    otp_generated_at = Column(DateTime, default=func.now())
 
 
     demos = relationship("DemoFormFill", back_populates="demo")
@@ -38,6 +40,10 @@ class LmsUsers(Base):
     teacher = relationship("Teacher", back_populates="user")
 
     parent_info = relationship("Parent", back_populates="user")
+
+    teacher_courses = relationship("TeacherCourse", back_populates="user")
+
+    attendances = relationship("Attendance", back_populates="student")
 
     # #######################################################################################################################
     @staticmethod

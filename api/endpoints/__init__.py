@@ -39,3 +39,5 @@ from .announcement import router as announcement_router
 from .teacher_course import router as teacher_course_router
 from .course_active import router as course_active
 from .google_map_reviews import router as google_map_router
+#from .swagger_security import router as swagger_router
+from  .attendance import router as attendances_router

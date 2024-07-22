@@ -25,3 +25,5 @@ class Course_content(Base):
     course_details = relationship("CourseDetails", back_populates="course_contents")
     lessons = relationship("Lesson", back_populates="course_contents")
     content = relationship('Content', back_populates='course_contents')
+
+    teacher_by = relationship("TeacherCourse", back_populates="course_Assign")

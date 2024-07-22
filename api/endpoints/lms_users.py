@@ -8,6 +8,8 @@ from ..models.user import LmsUsers
 from ..schemas import LoginInput, ChangePassword, UserCreate, UpdateUser, UserType
 import bcrypt
 from .Email_config import send_email
+import random
+import pytz
 
 router = APIRouter()
 
@@ -189,21 +191,77 @@ async def change_password(current_password: str, new_password: str, confirm_new_
 
 
 
-@router.put("/reset_password")
-async def forgot_password(email: str, new_password: str, confirm_new_password: str, db: Session = Depends(get_db)):
-    try:
-        if new_password != confirm_new_password:
-            raise HTTPException(status_code=400, detail="Passwords do not match")
+def generate_otp():
+    return random.randint(100000, 999999)
 
+# Function to send OTP email
+async def send_otp_email(email: str, otp: int):
+    otp_email_body = f"""
+    <p>Dear User,</p>
+    <p>Your OTP for password reset is: <strong>{otp}</strong></p>
+    <p>Please use this OTP to reset your password.</p>
+    <br><br>
+    <p>Best regards,</p>
+    <p>Vinay Kumar</p>
+    <p>MaitriAI</p>
+    <p>900417181</p>
+    """
+    await send_email(
+        subject="Password Reset OTP",
+        email_to=email,
+        body=otp_email_body
+    )
+
+@router.post("/send_otp")
+async def send_otp(email: str, db: Session = Depends(get_db)):
+    user = db.query(LmsUsers).filter(LmsUsers.user_email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+
+    otp = generate_otp()
+    utc_now = pytz.utc.localize(datetime.utcnow())
+    ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+    
+    # Update the existing user record
+    user.reset_otp = otp
+    user.otp_generated_at = ist_now
+    
+    db.commit()
+
+    await send_otp_email(email, otp)
+    return {"message": "OTP sent successfully"}
+
+@router.put("/reset_password")
+async def reset_password(email: str, otp: int, new_password: str, confirm_new_password: str, db: Session = Depends(get_db)):
+    try:
         user = db.query(LmsUsers).filter(LmsUsers.user_email == email).first()
         if not user:
             raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+
+        # Verify OTP
+        if user.reset_otp != otp:
+            raise HTTPException(status_code=400, detail="Invalid OTP")
+
+        # Check OTP expiration
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_time = datetime.now(ist_tz)
         
-        if not validate_password(new_password):
-            raise HTTPException(status_code=400, detail="Invalid new password")
+        # Ensure otp_generated_at is timezone-aware
+        otp_generated_at = user.otp_generated_at.replace(tzinfo=pytz.UTC).astimezone(ist_tz)
+        
+        otp_age = current_time - otp_generated_at
+        if otp_age > timedelta(minutes=10):
+            raise HTTPException(status_code=400, detail="OTP has expired")
+
+        if new_password != confirm_new_password:
+            raise HTTPException(status_code=400, detail="Passwords do not match")
 
         hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
         user.user_password = hashed_new_password
+        
+        # Clear the OTP after successful password reset
+        user.reset_otp = None
+        user.otp_generated_at = None
 
         db.commit()
 
@@ -223,7 +281,7 @@ async def forgot_password(email: str, new_password: str, confirm_new_password: s
         <p>900417181</p>
         """
         await send_email(
-            subject="Password Reset Request",
+            subject="Password Reset Confirmation",
             email_to=email,
             body=reset_email_body
         )
@@ -232,10 +290,8 @@ async def forgot_password(email: str, new_password: str, confirm_new_password: s
 
     except HTTPException as e:
         raise e
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
 ##########################################################################################
 
 
