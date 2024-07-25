@@ -45,3 +45,6 @@ from .announcement import Announcement
 from .teacher_course import TeacherCourse
 from .courses_content import Course_content
 from .attendance import Attendance
+
+from .Discount_Ass_result import DiscountAssessmentResut
+from .Discount_assesment_paper import DiscountQuestion

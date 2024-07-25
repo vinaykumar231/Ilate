@@ -43,7 +43,8 @@ class LmsUsers(Base):
 
     teacher_courses = relationship("TeacherCourse", back_populates="user")
 
-    attendances = relationship("Attendance", back_populates="student")
+    Discount_Ass_result = relationship("DiscountAssessmentResut", back_populates="users")
+
 
     # #######################################################################################################################
     @staticmethod

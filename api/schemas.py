@@ -1,7 +1,7 @@
 from pydantic import BaseModel,  Field, EmailStr
 from typing import Optional, List
 from fastapi import UploadFile, File
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from sqlalchemy import JSON
 
@@ -933,8 +933,9 @@ class AttendanceCreate(BaseModel):
 class AttendanceResponse(BaseModel):
     id: int
     student_id: int
-    date: date
-    status: AttendanceStatus
+    student_name: str
+    student_attendance_status: str
+    date: datetime
 
     class Config:
         orm_mode = True

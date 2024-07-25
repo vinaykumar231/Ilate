@@ -8,7 +8,7 @@ from api.endpoints import (companies_router, branches_router, usertypes_router, 
                            standards_router, courses_router, admission_router, inquiry_router,payments_router,content_router,
                            batches_router, fees_router, tests_router,  questions_router, 
                            question_papers_router, parents_router, teachers_Data_router,installments_router,mail_router,announcement_router, teacher_course_router,course_active,
-                           google_map_router,attendances_router
+                           google_map_router,attendances_router,discount_assement_router
 )
 
 
@@ -252,7 +252,7 @@ app.include_router(installments_router, prefix="/api", tags=["Student Routes"])
 app.include_router(mail_router, prefix="/api", tags=["Student Routes"])
 app.include_router(course_active, prefix="/api", tags=["Student Routes"])
 app.include_router(attendances_router, prefix="/api", tags=["Student Routes"])
-
+app.include_router(discount_assement_router, prefix="/api", tags=["Discount Routes"])
 #app.include_router(inquiry_router, prefix="/api", tags=["Student Routes"])
 #app.include_router(fees_router, prefix="/api")
 
