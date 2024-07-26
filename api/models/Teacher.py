@@ -12,8 +12,8 @@ class Teacher(Base):
     email = Column(String(255), unique=True)
     department = (String(255))
     
-    question_papers = relationship('QuestionPaper', back_populates='teacher')
-    tests = relationship('Test', back_populates='teacher')
+    #question_papers = relationship('QuestionPaper', back_populates='teacher')
+    #tests = relationship('Test', back_populates='teacher')
 
     # Define one-to-one relationship with TeacherContact
     contact_information = relationship("TeacherContact", back_populates="teacher")
@@ -33,3 +33,5 @@ class Teacher(Base):
     user = relationship("LmsUsers", back_populates="teacher")
 
     courses_by = relationship("TeacherCourse", back_populates="teacher_Assign")
+
+    created_question_papers = relationship("QuestionPaper1", back_populates="teacher")

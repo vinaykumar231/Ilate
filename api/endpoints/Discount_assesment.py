@@ -2,11 +2,11 @@ from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db.session import get_db
-from ..models.Questions import Question as QuestionModel
+#from ..models.Questions import Question as QuestionModel
 from ..models.Discount_assesment_paper import DiscountQuestion
 from pydantic import BaseModel, Field
 from ..schemas import QuestionCreate, QuestionGetResponse
-from ..models.Questions import Question, save_upload
+#from ..models.Questions import Question, save_upload
 from ..models import LmsUsers 
 from typing import List, Optional
 from fastapi import Form

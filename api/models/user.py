@@ -45,6 +45,8 @@ class LmsUsers(Base):
 
     Discount_Ass_result = relationship("DiscountAssessmentResut", back_populates="users")
 
+    answers = relationship("StudentAnswer", back_populates="users")
+
 
     # #######################################################################################################################
     @staticmethod

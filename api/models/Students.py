@@ -37,11 +37,11 @@ class Student(Base):
     parent_info = relationship("Parent", uselist=False, back_populates="student")
     
     # Define relationship with QuestionPaper
-    question_papers = relationship('QuestionPaper', back_populates='student')
+    #question_papers = relationship('QuestionPaper', back_populates='student')
     
     # Define relationship with LmsUsers
     user = relationship("LmsUsers", back_populates="student")
-    tests = relationship("Test", back_populates="student", overlaps="user")
+    #tests = relationship("Test", back_populates="student", overlaps="user")
 
     #payments = relationship("Payment", back_populates="student")
 

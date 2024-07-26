@@ -9,7 +9,7 @@ from db.session import get_db
 from ..models import Content, Module
 from ..schemas import ContentCreate
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher
+from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher,get_current_user
 from fastapi.responses import JSONResponse
 import os
 import uuid
@@ -19,8 +19,10 @@ from sqlalchemy.orm import joinedload
 from ..models. courses_content import Course_content
 import os
 from dotenv import load_dotenv
-from ..models import Course, TeacherCourse
+from ..models import Course, TeacherCourse, LmsUsers,QuestionPaper1
 from sqlalchemy import and_
+from datetime import datetime
+import pytz
 
 
 load_dotenv()
@@ -98,8 +100,12 @@ async def create_lesson_and_content(
     lesson_title: str = Form(...),
     content_descriptions: str = Form(...),
     files: List[UploadFile] = File(...),
+    current_user: LmsUsers = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    teacher = db.query(Teacher).filter(Teacher.user_id == current_user.user_id).first()
+    if not teacher:
+        raise HTTPException(status_code=400, detail="Current user is not a teacher")
     # Check if the course content exists and is associated with an assigned course
     course_content = db.query(Course_content).join(
         Course,
@@ -122,6 +128,17 @@ async def create_lesson_and_content(
     )
     db.add(new_lesson)
     db.flush()
+
+    utc_now = pytz.utc.localize(datetime.utcnow())
+    ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+    lesson_for_test = QuestionPaper1(
+    lesson_id=new_lesson.lesson_id,
+    lesson_title=lesson_title,
+    created_by=teacher.Teacher_id,
+    created_on=ist_now
+)
+    db.add(lesson_for_test)
+    db.commit()
 
     file_paths = []
     for upload_file in files:

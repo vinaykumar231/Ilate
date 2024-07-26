@@ -17,9 +17,11 @@ class Lesson(Base):
     content = relationship('Content', back_populates='lesson')
 
     course_detail = relationship('CourseDetails', back_populates='lessons')
-    tests = relationship('Test', back_populates='lessons')
+    #tests = relationship('Test', back_populates='lessons')
 
     course_contents = relationship("Course_content", back_populates="lessons")
+
+    question_papers = relationship('QuestionPaper1', back_populates='lesson')
 
 
 

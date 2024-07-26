@@ -22,13 +22,13 @@ from .batch import Batch
 from .content import Content
 from .lesson import Lesson
 from .payment import Payment
-from .Question_Paper import QuestionMapping
-from .Questions import Question
-from .paper import  Paper
-from .Question_Paper_Table import QuestionPaper
+#from .Question_Paper import QuestionMapping
+#from .Questions import Question
+#from .paper import  Paper
+#from .Question_Paper_Table import QuestionPaper
 from .installment import Installment
 from .content import Content
-from .Test import Test
+#from .Test import Test
 from .Teacher import Teacher
 from .Students import Student
 #from .inquiry import inquiry
@@ -48,3 +48,9 @@ from .attendance import Attendance
 
 from .Discount_Ass_result import DiscountAssessmentResut
 from .Discount_assesment_paper import DiscountQuestion
+
+from .lesson_test_paper import QuestionPaper1
+from .lesson_student_test_ans import StudentAnswer
+
+#from .Discount_correct_ans import DiscountCorrectAnswer
+from .lesson_test_question import LessontestQuestion

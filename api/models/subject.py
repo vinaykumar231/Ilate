@@ -13,7 +13,7 @@ class Subject(Base):
     standards = relationship("Standard", back_populates="subject")
     modules = relationship("Module", back_populates="subject")
     videos = relationship('Video', back_populates='subject')
-    question_papers = relationship('QuestionPaper', back_populates='subject')
+    #question_papers = relationship('QuestionPaper', back_populates='subject')
 
     course_details = relationship("CourseDetails", back_populates="subject")
 

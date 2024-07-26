@@ -10,7 +10,7 @@ class Module(Base):
     subject_id = Column(Integer, ForeignKey('subjects.id'))
 
     subject = relationship("Subject", back_populates='modules')
-    question_papers = relationship('QuestionPaper', back_populates='modules')
+    #question_papers = relationship('QuestionPaper', back_populates='modules')
     #lessons = relationship('Lesson', back_populates='module')
 
     # Define the relationship with CourseDetails

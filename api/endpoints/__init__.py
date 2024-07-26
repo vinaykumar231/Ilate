@@ -19,16 +19,16 @@ from .inquiry_form import router as inquiry_router
 from .batches import router as batches_router
 from .fees import router as fees_router
 #from .payment_status import router as payment_router
-from .Questions import router as questions_router
-from .Test import router as tests_router
+#from .Questions import router as questions_router
+#from .Test import router as tests_router
 from .fees import router as fees_router
 from .payments import router as payments_router
 from .installments import router as installments_router
-from .Question_Paper_Table import router as question_papers_router
-from .Question_Paper import router as question_mappings_router
-from .paper import router as papers_router
+#from .Question_Paper_Table import router as question_papers_router
+#from .Question_Paper import router as question_mappings_router
+#from .paper import router as papers_router
 from .contents import router as content_router
-from .Test import router as tests_router
+#from .Test import router as tests_router
 #from .Teacher import router as teachers_router
 #from .students import router as students_router
 #from ...Teacher_data.Employee.api.employee_master_table import router as employees_router
@@ -43,4 +43,4 @@ from .google_map_reviews import router as google_map_router
 from  .attendance import router as attendances_router
 
 from .Discount_assesment import router as discount_assement_router
-
+from .lesson_test import router as lesson_test_router
