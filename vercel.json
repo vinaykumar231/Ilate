@@ -6,7 +6,7 @@
         "use": "@vercel/python",
         "config": {
           "runtime": "python3.12",
-          "install": "pip install -r requirements.txt"
+          "installCommand": "pip install -r requirements.txt"
         }
       }
     ],
@@ -18,9 +18,6 @@
     ],
     "env": {
       "PYTHONUNBUFFERED": "1"
-    },
-    "output": {
-      "type": "serverless",
-      "path": "build"
     }
   }
+  

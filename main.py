@@ -28,7 +28,7 @@ from pydantic import BaseModel
 from typing import Optional
 import secrets
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-
+from mangum import Mangum
 ####################################################################################
                         #for google login
 ###################################################################################
@@ -66,7 +66,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 ###################################################################################
                         # for Swagger security all code
 ##################################################################################
-
+handler = Mangum(app)
 # Authentication setup
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
