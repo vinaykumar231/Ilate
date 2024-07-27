@@ -130,8 +130,10 @@ def is_answer_correct(selected_ans, selected_ans_image, correct_ans, correct_ans
     if selected_ans and correct_ans:
         selected_ans = selected_ans.lower().strip()
         correct_ans = correct_ans.lower().strip()
-        text_similarity = difflib.SequenceMatcher(None, selected_ans, correct_ans).ratio()
-        if text_similarity >= similarity_threshold or selected_ans == correct_ans:
+        if selected_ans == correct_ans:
+            return True
+        similarity = difflib.SequenceMatcher(None, selected_ans, correct_ans).ratio()
+        if similarity >= similarity_threshold:
             return True
 
     # Image comparison
@@ -167,6 +169,7 @@ async def answer_question(
             user_id=current_user.user_id,
             question_paper_id=question.question_paper_id,
             total_questions=0,
+            correct_answer=0,
             wrong_answer=0,
             score=0,
             passed=False
@@ -187,8 +190,8 @@ async def answer_question(
         # Check if the answer is correct
         is_correct = is_answer_correct(
             selected_ans_text,
-            question.correct_ans_text,
             temp_image_path,
+            question.correct_ans_text,
             question.correct_ans_images
         )
 
@@ -196,12 +199,13 @@ async def answer_question(
         student_answer.total_questions += 1
         student_answer.given_ans_text = selected_ans_text
         student_answer.is_correct = is_correct
-        if not is_correct:
+        if is_correct:
+            student_answer.correct_answer += 1
+        else:
             student_answer.wrong_answer += 1
 
         # Calculate score
-        correct_answers = student_answer.total_questions - student_answer.wrong_answer
-        student_answer.score = (correct_answers / student_answer.total_questions) * 100 if student_answer.total_questions > 0 else 0
+        student_answer.score = (student_answer.correct_answer / student_answer.total_questions) * 100 if student_answer.total_questions > 0 else 0
         
         # Ensure score is between 0 and 100
         student_answer.score = max(min(student_answer.score, 100), 0)
@@ -225,7 +229,7 @@ async def answer_question(
             "is_correct": is_correct,
             "score_in_%": student_answer.score,
             "total_questions_answered": student_answer.total_questions,
-            "correct_answers": student_answer.total_questions - student_answer.wrong_answer,
+            "correct_answers": student_answer.correct_answer,
             "wrong_answers": student_answer.wrong_answer,
             "passed": student_answer.passed 
         }

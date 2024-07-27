@@ -12,6 +12,7 @@ class StudentAnswer(Base):
     given_ans_text = Column(String(255))
     given_ans_image = Column(String(255))
     is_correct = Column(Boolean, default=False) 
+    correct_answer= Column(Integer, default=0)
     wrong_answer= Column(Integer, default=0)
     #duration=Column(Integer, default=0)
     score = Column(Float)
