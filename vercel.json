@@ -4,7 +4,10 @@
       {
         "src": "main.py",
         "use": "@vercel/python",
-        "config": { "runtime": "python3.12" }
+        "config": {
+          "runtime": "python3.12",
+          "install": "pip install -r requirements.txt"
+        }
       }
     ],
     "routes": [
@@ -15,5 +18,9 @@
     ],
     "env": {
       "PYTHONUNBUFFERED": "1"
+    },
+    "output": {
+      "type": "serverless",
+      "path": "build"
     }
   }
