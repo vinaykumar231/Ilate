@@ -3,11 +3,7 @@
     "builds": [
       {
         "src": "main.py",
-        "use": "@vercel/python",
-        "config": {
-          "runtime": "python3.12",
-          "installCommand": "pip install -r requirements.txt"
-        }
+        "use": "@vercel/python"
       }
     ],
     "routes": [
@@ -15,9 +11,5 @@
         "src": "/(.*)",
         "dest": "main.py"
       }
-    ],
-    "env": {
-      "PYTHONUNBUFFERED": "1"
-    }
+    ]
   }
-  
