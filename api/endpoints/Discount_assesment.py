@@ -7,7 +7,7 @@ from ..models.Discount_assesment_paper import DiscountQuestion
 from pydantic import BaseModel, Field
 from ..schemas import QuestionCreate, QuestionGetResponse
 #from ..models.Questions import Question, save_upload
-from ..models import LmsUsers 
+from ..models import LmsUsers,Standard, Subject 
 from typing import List, Optional
 from fastapi import Form
 import shutil
@@ -34,6 +34,8 @@ router = APIRouter()
 
 @router.post("/Discount_questions/", response_model=None)
 async def create_question(
+    standard_id : int= Form(...),
+    subject_id : int= Form(...),
     question_text: str = Form(None),
     option1_text: str = Form(None),
     option2_text: str = Form(None),
@@ -47,6 +49,8 @@ async def create_question(
         
         # Create Question instance
         db_question = DiscountQuestion(
+            standard_id=standard_id,
+            subject_id=subject_id,
             question_text=question_text,
             option1_text=option1_text,
             option2_text=option2_text,
@@ -157,12 +161,69 @@ async def answer_question(
         raise HTTPException(status_code=400, detail="Error updating the assessment result")
 ########################################################################
 
-base_url_path = os.getenv("BASE_URL_PATH")
+class QuestionPaperResponse(BaseModel):
+    subject_id: int
+    subject_name: str
+    standard_id: int
+    standard_name: str
+    option1_text: str
+    option2_text: str
+    option3_text: str
+    option4_text: str
+    correct_ans_text: str
+    question_id: int
+    question_text: str
+    difficulty_level: str
 
-def prepend_base_url(path: Optional[str]) -> Optional[str]:
-    if path:
-        return f"{base_url_path}/{path}"
-    return None
+    class Config:
+        orm_mode = True
+
+@router.get("/Discount_questions/start_&_limit/", response_model=List[QuestionPaperResponse])
+async def get_question_paper(
+    standard_id: int,
+    subject_id: int,
+    start: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    # Query to get questions with subject and standard information
+    questions = db.query(DiscountQuestion, Subject.name.label('subject_name'), Standard.name.label('standard_name'))\
+        .join(Subject, DiscountQuestion.subject_id == Subject.id)\
+        .join(Standard, DiscountQuestion.standard_id == Standard.id)\
+        .filter(DiscountQuestion.standard_id == standard_id,
+                DiscountQuestion.subject_id == subject_id)\
+        .offset(start).limit(limit).all()
+    
+    if not questions:
+        raise HTTPException(status_code=404, detail="No questions found for the given standard and subject")
+    
+    # Prepare the response
+    result = []
+    for question, subject_name, standard_name in questions:
+        result.append(QuestionPaperResponse(
+            subject_id=question.subject_id,
+            subject_name=subject_name,
+            standard_id=question.standard_id,
+            standard_name=standard_name,
+            option1_text=question.option1_text,
+            option2_text=question.option2_text,
+            option3_text=question.option3_text,
+            option4_text=question.option4_text,
+            correct_ans_text=question.correct_ans_text,
+            question_id=question.question_id,
+            question_text=question.question_text,
+            difficulty_level=question.difficulty_level
+        ))
+    
+    return result
+
+
+# base_url_path = os.getenv("BASE_URL_PATH")
+
+# def prepend_base_url(path: Optional[str]) -> Optional[str]:
+#     if path:
+#         return f"{base_url_path}/{path}"
+#     return None
 
 @router.get("/Discount_questions/{question_id}", response_model=None)
 async def get_lesson_test_question(

@@ -53,7 +53,7 @@ class Student(Base):
     # subject = relationship("Subject",uselist=False, back_populates="student")
     # #module = relationship("Module",uselist=False, back_populates="student")
     # standard = relationship("Standard",uselist=False, back_populates="student")
-    attendances = relationship("Attendance", back_populates="students")
+    #attendances = relationship("Attendance", back_populates="students")
 
 
 

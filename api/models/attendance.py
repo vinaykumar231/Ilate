@@ -4,14 +4,18 @@ from sqlalchemy.orm import relationship
 
 
 class Attendance(Base):
-    __tablename__ = "attendances1"
+    __tablename__ = "attendances4"
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id"))
+    student_id = Column(JSON)
+    course_content_id=Column(Integer, ForeignKey("courses_content.id"))
     date = Column(DateTime, default=func.now())
-    status = Column(String(255), default="absent") 
+    status = Column(JSON) 
 
 
-    students = relationship("Student", back_populates="attendances")
+    #students = relationship("Student", back_populates="attendances")
+
+    course_content = relationship("Course_content", back_populates="attendances")
+    
 
 
     

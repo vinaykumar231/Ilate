@@ -19,3 +19,5 @@ class Standard(Base):
 
     #student = relationship("Student",uselist=False, back_populates="standard")
     courses_content = relationship("Course_content", back_populates="standard")
+
+    discount_Questions = relationship("DiscountQuestion", back_populates="standards")

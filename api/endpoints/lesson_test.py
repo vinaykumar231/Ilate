@@ -113,44 +113,50 @@ async def create_question(
         print(f"Detailed error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create question: {str(e)}")
    
-def image_to_string(image_path):
-    """Convert an image to a string representation."""
-    try:
-        img = Image.open(image_path)
-        img_array = np.array(img)
-        return img_array.tobytes().decode('latin-1')
-    except Exception as e:
-        print(f"Error processing image: {e}")
-        return ""
+# def image_to_string(image_path):
+#     """Convert an image to a string representation."""
+#     try:
+#         img = Image.open(image_path)
+#         img_array = np.array(img)
+#         return img_array.tobytes().decode('latin-1')
+#     except Exception as e:
+#         print(f"Error processing image: {e}")
+#         return ""
 
-def is_answer_correct(selected_ans, selected_ans_image, correct_ans, correct_ans_image):
-    similarity_threshold = 0.9
+# def is_answer_correct(selected_ans, selected_ans_image, correct_ans, correct_ans_image):
+#     similarity_threshold = 0.9
 
-    # Text comparison
-    if selected_ans and correct_ans:
-        selected_ans = selected_ans.lower().strip()
-        correct_ans = correct_ans.lower().strip()
-        if selected_ans == correct_ans:
-            return True
-        similarity = difflib.SequenceMatcher(None, selected_ans, correct_ans).ratio()
-        if similarity >= similarity_threshold:
-            return True
+#     # Text comparison
+#     if selected_ans and correct_ans:
+#         selected_ans = selected_ans.lower().strip()
+#         correct_ans = correct_ans.lower().strip()
+#         if selected_ans == correct_ans:
+#             return True
+#         similarity = difflib.SequenceMatcher(None, selected_ans, correct_ans).ratio()
+#         if similarity >= similarity_threshold:
+#             return True
 
-    # Image comparison
-    if selected_ans_image and correct_ans_image:
-        selected_img_str = image_to_string(selected_ans_image)
-        correct_img_str = image_to_string(correct_ans_image)
-        image_similarity = difflib.SequenceMatcher(None, selected_img_str, correct_img_str).ratio()
-        if image_similarity >= similarity_threshold:
-            return True
+#     # Image comparison
+#     if selected_ans_image and correct_ans_image:
+#         selected_img_str = image_to_string(selected_ans_image)
+#         correct_img_str = image_to_string(correct_ans_image)
+#         image_similarity = difflib.SequenceMatcher(None, selected_img_str, correct_img_str).ratio()
+#         if image_similarity >= similarity_threshold:
+#             return True
 
-    return False
+#     return False
+
+base_url_path = "http://192.168.29.40:8000"
+
+def prepend_base_url(path: Optional[str]) -> Optional[str]:
+    if path:
+        return f"{base_url_path}/{path}"
+    return None
 
 @router.post("/lesson-test-questions/student-answers/{question_id}/answer")
 async def answer_question(
     question_id: int,
-    selected_ans_text: Optional[str] = Form(None),
-    selected_ans_image: UploadFile = File(None),
+    user_answer: str = Form(...),  
     db: Session = Depends(get_db),
     current_user: LmsUsers = Depends(get_current_user)
 ):
@@ -179,37 +185,49 @@ async def answer_question(
         db.refresh(student_answer)
 
     try:
-       
-        # Handle the image file if it's uploaded
-        temp_image_path = None
-        if selected_ans_image:
-            temp_image_path = f"temp_{selected_ans_image.filename}"
-            with open(temp_image_path, "wb") as buffer:
-                buffer.write(await selected_ans_image.read())
+        # Function to get the option number based on the answer
+        def get_option_number(answer):
+            options = {
+                (question.option1_text or "").lower().strip(): "option1",
+                (question.option1_images or "").lower().strip(): "option1",
+                (question.option2_text or "").lower().strip(): "option2",
+                (question.option2_images or "").lower().strip(): "option2",
+                (question.option3_text or "").lower().strip(): "option3",
+                (question.option3_images or "").lower().strip(): "option3",
+                (question.option4_text or "").lower().strip(): "option4",
+                (question.option4_images or "").lower().strip(): "option4",
+            }
+            return options.get(answer.lower().strip())
 
-        # Check if the answer is correct
-        is_correct = is_answer_correct(
-            selected_ans_text,
-            temp_image_path,
-            question.correct_ans_text,
-            question.correct_ans_images
-        )
+        # Get the option number for the user's answer
+        user_option = get_option_number(user_answer)
+
+        if not user_option:
+            raise HTTPException(status_code=400, detail="Invalid answer")
+
+       
+        is_correct = user_option == question.correct_ans_text
 
         # Update student's answer statistics
         student_answer.total_questions += 1
-        student_answer.given_ans_text = selected_ans_text
+        student_answer.given_ans_text = user_option  # Store the option number (e.g., "option1")
         student_answer.is_correct = is_correct
         if is_correct:
             student_answer.correct_answer += 1
         else:
             student_answer.wrong_answer += 1
 
-        # Calculate score
-        student_answer.score = (student_answer.correct_answer / student_answer.total_questions) * 100 if student_answer.total_questions > 0 else 0
-        
+       # Calculate score
+        correct_points = student_answer.correct_answer * question.per_question_marks  
+        # wrong_points = student_answer.wrong_answer * 0.25  
+        # total_points = correct_points - wrong_points
+        #max_possible_points = student_answer.total_questions*2 
+        # student_answer.score = (total_points / max_possible_points) * 100 if max_possible_points > 0 else 0
+        student_answer.score = correct_points
+
         # Ensure score is between 0 and 100
-        student_answer.score = max(min(student_answer.score, 100), 0)
-        student_answer.passed = student_answer.score >= 75
+        #student_answer.score = max(min(student_answer.score, 100), 0)
+        student_answer.passed = student_answer.score >= 40
         
         db.commit()
         db.refresh(student_answer)
@@ -218,16 +236,23 @@ async def answer_question(
             "student_id": current_user.user_id,
             "question_id": question_id,
             "question_text": question.question_text,
+            "question_images": prepend_base_url(question.question_images),
             "options": {
-                "option1": question.option1_text,
-                "option2": question.option2_text,
-                "option3": question.option3_text,
-                "option4": question.option4_text,
+                "option1_text": question.option1_text,
+                "option1_images": prepend_base_url(question.option1_images),
+                "option2_text": question.option2_text,
+                "option2_images": prepend_base_url(question.option2_images),
+                "option3_text": question.option3_text,
+                "option3_images": prepend_base_url(question.option3_images),
+                "option4_text": question.option4_text,
+                "option4_images": prepend_base_url(question.option4_images),
             },
-            "correct_answer": question.correct_ans_text,
-            "user_answer": selected_ans_text,
+            "correct_ans": question.correct_ans_text,
+            "user_answer": user_answer,
+            "user_answer_image": student_answer.given_ans_image,
+            "user_selected_option": user_option,  # This will be "option1", "option2", etc.
             "is_correct": is_correct,
-            "score_in_%": student_answer.score,
+            "obtain_marks": student_answer.score,
             "total_questions_answered": student_answer.total_questions,
             "correct_answers": student_answer.correct_answer,
             "wrong_answers": student_answer.wrong_answer,
@@ -237,13 +262,13 @@ async def answer_question(
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Error updating the student answer")
-# Get Question by ID
-base_url_path = "http://192.168.29.40:8000"
 
-def prepend_base_url(path: Optional[str]) -> Optional[str]:
-    if path:
-        return f"{base_url_path}/{path}"
-    return None
+# base_url_path = "http://192.168.29.40:8000"
+
+# def prepend_base_url(path: Optional[str]) -> Optional[str]:
+#     if path:
+#         return f"{base_url_path}/{path}"
+#     return None
 
 @router.get("/lesson-test-questions/{question_id}", response_model=None)
 async def get_lesson_test_question(
