@@ -12,5 +12,4 @@ class Skill(Base):
     certification = Column(String(length=50))
     license = Column(String(length=50))
 
-    # Define many-to-one relationship with Teacher
     teacher = relationship("Teacher", back_populates="skills")

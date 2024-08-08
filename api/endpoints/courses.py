@@ -37,22 +37,18 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
     course_contents_created = 0
     course_contents_updated = 0
     try:
-        # Check if the course already exists
         existing_course = db.query(Course).filter(Course.name == course_data.course_name).first()
 
         if existing_course:
             course = existing_course
             print(f"Using existing course: {course.name} (ID: {course.id})")
         else:
-            # Create new course
             course = Course(name=course_data.course_name, description=course_data.description)
             db.add(course)
             db.flush()
             course_created += 1  
 
-        # Create standards and their subjects and modules
         for standard_data in course_data.standards:
-            # Check if standard already exists for this course
             existing_standard = db.query(Standard).filter(
                 Standard.name == standard_data.standard_name,
                 Standard.course_id == course.id
@@ -67,7 +63,6 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
                 standards_created += 1
 
             for subject_data in standard_data.subjects:
-                # Check if subject already exists for this standard
                 existing_subject = db.query(Subject).filter(
                     Subject.name == subject_data.subject_name,
                     Subject.standard_id == standard.id
@@ -82,7 +77,6 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
                     subjects_created += 1
 
                 for module_data in subject_data.modules:
-                    # Check if module already exists for this subject
                     existing_module = db.query(Module).filter(
                         Module.name == module_data.module_name,
                         Module.subject_id == subject.id
@@ -96,7 +90,6 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
                         db.flush()
                         modules_created += 1
 
-                    # Check for existing Course_content entry
                     existing_content = db.query(Course_content).filter(
                         Course_content.course_id == course.id,
                         Course_content.standard_id == standard.id,
@@ -122,7 +115,6 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
 
                     db.flush()
 
-        # If everything went well, commit the transaction
         db.commit()
 
         return {
@@ -170,13 +162,11 @@ def add_hierarchy_to_course(course_id: int, hierarchy_data: HierarchyCreate, db:
     course_contents_created = 0
 
     try:
-        # Check if the course exists
         course = db.query(Course).filter(Course.id == course_id).first()
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
 
         for standard_data in hierarchy_data.standards:
-            # Create or get existing standard
             standard = db.query(Standard).filter(
                 Standard.name == standard_data.standard_name,
                 Standard.course_id == course.id
@@ -188,7 +178,6 @@ def add_hierarchy_to_course(course_id: int, hierarchy_data: HierarchyCreate, db:
                 standards_created += 1
 
             for subject_data in standard_data.subjects:
-                # Create or get existing subject
                 subject = db.query(Subject).filter(
                     Subject.name == subject_data.subject_name,
                     Subject.standard_id == standard.id
@@ -200,7 +189,6 @@ def add_hierarchy_to_course(course_id: int, hierarchy_data: HierarchyCreate, db:
                     subjects_created += 1
 
                 for module_data in subject_data.modules:
-                    # Create or get existing module
                     module = db.query(Module).filter(
                         Module.name == module_data.module_name,
                         Module.subject_id == subject.id
@@ -211,7 +199,6 @@ def add_hierarchy_to_course(course_id: int, hierarchy_data: HierarchyCreate, db:
                         db.flush()
                         modules_created += 1
 
-                    # Create Course_content entry if it doesn't exist
                     existing_content = db.query(Course_content).filter(
                         Course_content.course_id == course.id,
                         Course_content.standard_id == standard.id,
@@ -230,7 +217,6 @@ def add_hierarchy_to_course(course_id: int, hierarchy_data: HierarchyCreate, db:
                         db.add(new_content)
                         course_contents_created += 1
 
-        # Commit the transaction
         db.commit()
 
         return {
@@ -266,21 +252,18 @@ class CourseResponse(BaseModel):
 
 @router.get("/course/{course_id}", response_model=CourseResponse)
 def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
-    # Query the course with all related data
     course = db.query(Course).options(
         joinedload(Course.standards)
-        .joinedload(Standard.subject)  # Changed from 'subject' to 'subjects'
+        .joinedload(Standard.subject)  
         .joinedload(Subject.modules)
     ).filter(Course.id == course_id).first()
     
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     
-    # Query course_content separately
     course_contents = db.query(Course_content).filter(Course_content.course_id == course_id).all()
     content_map = {(c.standard_id, c.subject_id, c.module_id): c for c in course_contents}
     
-    # Construct the response
     related_course_details = []
 
     for standard in course.standards:
@@ -308,9 +291,8 @@ def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
 
 @router.get("/course/{course_id}/content/{admin_course_id}", response_model=None)
 def get_course_content_detail(course_id: int, admin_course_id: int, db: Session = Depends(get_db)):
-    # Query the course content with all related data
+
     course_content = db.query(Course_content).options(
-        #joinedload(Course_content.course),
         joinedload(Course_content.standard),
         joinedload(Course_content.subject),
         joinedload(Course_content.module)
@@ -322,7 +304,6 @@ def get_course_content_detail(course_id: int, admin_course_id: int, db: Session 
     if not course_content:
         raise HTTPException(status_code=404, detail="Course content not found")
     
-
     data={
         "admin_course_id":course_content.id,
         "curse_id": course_content.course_id,
@@ -340,7 +321,6 @@ def get_course_content_detail(course_id: int, admin_course_id: int, db: Session 
 
 @router.get("/course/{course_id}/content", response_model=List[dict])
 def get_course_content_detail_course_id (course_id: int, db: Session = Depends(get_db)):
-    # Query all course content entries for the given course ID
     course_contents = db.query(Course_content).options(
         joinedload(Course_content.course),
         joinedload(Course_content.standard),
@@ -353,7 +333,6 @@ def get_course_content_detail_course_id (course_id: int, db: Session = Depends(g
     if not course_contents:
         raise HTTPException(status_code=404, detail="No course content found for this course")
 
-    # Prepare the response data
     data = []
     for content in course_contents:
         content_data = {
@@ -503,20 +482,17 @@ def get_course_content_by_criteria(
 
         content_data = []
         for c in content:
-            # Assume content_path is a string of comma-separated paths
             paths_to_save = c.content_path.split(',') if c.content_path else []
 
-            # Save files and get their new paths
             saved_paths = save_upload(paths_to_save)
 
-            # Convert to URL paths
             url_paths = [f"{base_url_path}/{os.path.basename(path)}" for path in saved_paths]
 
             content_data.append({
                 "name": c.name,
                 "description": c.description,
                 "content_type": c.content_type,
-                "content_paths": url_paths  # Use the new saved paths with UUIDs
+                "content_paths": url_paths  
             })
 
         return content_data
@@ -531,26 +507,20 @@ def get_course_content_by_criteria(
 @router.get("/courses_hierarchy/{course_id}", response_model=CourseCreateWithHierarchy, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
     try:
-        # Retrieve the course
         course = db.query(Course).filter(Course.id == course_id).first()
 
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
 
-        # Retrieve standards
         standards = db.query(Standard).filter(Standard.course_id == course_id).all()
 
-        # Retrieve subjects
         subjects = []
         for standard in standards:
             subjects.extend(db.query(Subject).filter(Subject.standard_id == standard.id).all())
 
-        # Retrieve modules
         modules = []
         for subject in subjects:
             modules.extend(db.query(Module).filter(Module.subject_id == subject.id).all())
-
-        # Construct CourseCreateWithHierarchy object
         course_hierarchy = CourseCreateWithHierarchy(
             course={
                 "name": course.name,
@@ -592,30 +562,23 @@ def get_all_courses_hierarchy(db: Session = Depends(get_db)):
 @router.delete("/courses_delete/{course_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def delete_course_with_hierarchy(course_id: int, db: Session = Depends(get_db)):
     try:
-        # Get the course
         course = db.query(Course).filter(Course.id == course_id).first()
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
 
-        # Get the content paths associated with the course
         content_paths = db.query(Content.content_path).filter(Content.lesson_id == course_id).all()
         content_paths = [path for path, in content_paths]
 
-        # Delete modules
         db.query(Module).filter(Module.subject_id.in_(db.query(Subject.id).filter(Subject.standard_id.in_(db.query(Standard.id)
                 .filter(Standard.course_id == course_id))))).delete(synchronize_session=False)
 
-        # Delete subjects
         db.query(Subject).filter(Subject.standard_id.in_(db.query(Standard.id).filter(Standard.course_id == course_id))).delete(synchronize_session=False)
 
-        # Delete standards
         db.query(Standard).filter(Standard.course_id == course_id).delete(synchronize_session=False)
 
-        # Delete course
         db.delete(course)
         db.commit()
 
-        # Remove associated content files from storage
         for path in content_paths:
             if os.path.exists(path):
                 os.remove(path)
@@ -652,9 +615,7 @@ def read_all_courses(db: Session = Depends(get_db)):
 @router.get("/courses/unique", response_model=None)
 def read_all_courses(db: Session = Depends(get_db)):
     try:
-        # Query distinct course names
         unique_course_names = db.query(Course.name).distinct().all()
-        # Convert to a list
         unique_names = [name[0] for name in unique_course_names]
         return {"unique_courses": unique_names}
     except Exception as e:

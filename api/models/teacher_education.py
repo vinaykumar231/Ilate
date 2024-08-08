@@ -17,7 +17,6 @@ class Education(Base):
     percentage = Column(Float)
 
 
-    # Define many-to-one relationship with Employee
     teacher = relationship("Teacher", back_populates="educations")
 
    

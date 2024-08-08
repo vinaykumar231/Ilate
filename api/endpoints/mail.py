@@ -18,7 +18,6 @@ router = APIRouter()
 
 EMAIL_REGEX_PATTERN = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 
-# Function to validate email address format
 def is_valid_email(email: str) -> bool:
     return re.match(EMAIL_REGEX_PATTERN, email) is not None
 
@@ -30,7 +29,6 @@ def validate_phone_number(phone):
 @router.post("/mail/", response_model=None)
 def create_mail(mail: MailCreate, db: Session = Depends(get_db)):
     try:
-        # Validate email address
         if not is_valid_email(mail.email):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -41,7 +39,6 @@ def create_mail(mail: MailCreate, db: Session = Depends(get_db)):
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Invalid phone number",
             )
-        # Proceed with creating mail
         db_mail = Mail(**mail.dict())
         utc_now = pytz.utc.localize(datetime.utcnow())
         ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))

@@ -11,28 +11,19 @@ from .students_contact_info import ContactInformation
 from .student_education import PreEducation
 from .course import Course
 from .subject import Subject
-#from .lession import Lesson
 from .demovideo import Video
 from .standard import Standard
 from .inquiry import Inquiry
-#from .payment import PaymentStatus
 from .course_detail import CourseDetails
 from .fee import Fee
 from .batch import Batch
 from .content import Content
 from .lesson import Lesson
 from .payment import Payment
-#from .Question_Paper import QuestionMapping
-#from .Questions import Question
-#from .paper import  Paper
-#from .Question_Paper_Table import QuestionPaper
 from .installment import Installment
 from .content import Content
-#from .Test import Test
 from .Teacher import Teacher
 from .Students import Student
-#from .inquiry import inquiry
-
 from .teacher_contact_info import TeacherContact
 from .teacher_education import Education
 from .teacher_skills import Skill
@@ -45,12 +36,8 @@ from .announcement import Announcement
 from .teacher_course import TeacherCourse
 from .courses_content import Course_content
 from .attendance import Attendance
-
 from .Discount_Ass_result import DiscountAssessmentResut
 from .Discount_assesment_paper import DiscountQuestion
-
 from .lesson_test_paper import QuestionPaper1
 from .lesson_student_test_ans import StudentAnswer
-
-#from .Discount_correct_ans import DiscountCorrectAnswer
 from .lesson_test_question import LessontestQuestion

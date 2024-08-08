@@ -30,11 +30,8 @@ def create_payment(
         if not current_user.is_formsubmited:
             raise HTTPException(status_code=400, detail="Admission form not submitted")
 
-        # Check if the payment has already been made based on the flag
         existing_payment = db.query(Payment).filter(Payment.user_id == current_user.user_id).first()
         
-        
-            # Check if the provided course, standard, subject, module, and batch exist in the database
         existing_course = db.query(Course).filter(Course.id == payment.course_id).first()
         existing_standard = db.query(Standard).filter(Standard.id == payment.standard_id).first()
         existing_subject = db.query(Subject).filter(Subject.id == payment.subject_id).first()
@@ -43,8 +40,7 @@ def create_payment(
 
         if not all([existing_course, existing_standard, existing_subject, existing_module, existing_batch]):
                 raise HTTPException(status_code=404, detail="One or more of course, standard, subject, module, or batch not found")
-
-            # Create the payment
+        
         db_payment = Payment(
                 user_id=current_user.user_id,
                 course_id=payment.course_id,
@@ -72,23 +68,17 @@ def create_payment(
 @router.get("/payments/history/{user_id}", response_model=None,  dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def get_payment_history(user_id: int, db: Session = Depends(get_db)):
     try:
-        # Retrieve the user from the database
         user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
         
-        # Check if user exists
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Retrieve payment history for the user
         payment_history = db.query(Payment).filter(Payment.user_id == user_id).all()
 
-        # Initialize list to store payment history details
         payment_history_details = []
 
-        # Initialize total amount
         total_amount = 0
 
-        # Add payment details to the list and calculate total amount
         for payment in payment_history:
             course = db.query(Course).filter(Course.id == payment.course_id).first()
             if course:
@@ -100,10 +90,8 @@ def get_payment_history(user_id: int, db: Session = Depends(get_db)):
                 })
                 total_amount += payment.amount
 
-        # Count number of payments
         num_payments = len(payment_history_details)
 
-        # Construct response
         response = {
             "user_id": user.user_id,
             "total_payments": num_payments,
@@ -119,7 +107,7 @@ def get_payment_history(user_id: int, db: Session = Depends(get_db)):
 @router.get("/payments/FetchAll", response_model=Optional[List[dict]], dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def read_all_payments(db: Session = Depends(get_db)):
     try:
-        # Subquery to get the latest payment for each user
+    
         subquery = (
             db.query(
                 Payment.user_id,
@@ -129,7 +117,6 @@ def read_all_payments(db: Session = Depends(get_db)):
             .subquery()
         )
 
-        # Main query to get the details of the latest payments
         payments = (
             db.query(Payment)
             .join(subquery, (Payment.user_id == subquery.c.user_id) & (Payment.created_on == subquery.c.latest_payment_date))
@@ -142,7 +129,6 @@ def read_all_payments(db: Session = Depends(get_db)):
 
         payment_history_details = []
         for payment in payments:
-            # Retrieve names of course, standard, subject, module, and batch
             course = db.query(Course).filter(Course.id == payment.course_id).first()
             standard = db.query(Standard).filter(Standard.id == payment.standard_id).first()
             subject = db.query(Subject).filter(Subject.id == payment.subject_id).first()
@@ -186,17 +172,14 @@ def read_payment(user_id: int, db: Session = Depends(get_db)):
     try:
         user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
         
-        # Check if user exists
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Retrieve the latest payment associated with the user, ordered by creation date in descending order
         latest_payment = db.query(Payment).filter(Payment.user_id == user_id).order_by(desc(Payment.created_on)).first()
 
         if not latest_payment:
             raise HTTPException(status_code=404, detail="No payments found for this user")
 
-        # Retrieve names of course, standard, subject, module, and batch
         course = db.query(Course).filter(Course.id == latest_payment.course_id).first()
         standard = db.query(Standard).filter(Standard.id == latest_payment.standard_id).first()
         subject = db.query(Subject).filter(Subject.id == latest_payment.subject_id).first()
@@ -209,7 +192,6 @@ def read_payment(user_id: int, db: Session = Depends(get_db)):
         module_name = module.name if module else None
         batch_name = batch.size if batch else None
 
-        # Construct response data
         response_data = {
             "payment_id": latest_payment.payment_id,
             "user_id": latest_payment.user_id,
@@ -237,24 +219,19 @@ def verify_payments_and_update_details(
     db: Session = Depends(get_db)
 ):
     try:
-        # Retrieve the user from the database
         user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
         
-        # Check if user exists
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Retrieve payments associated with the user
         payment_info = db.query(Payment).filter(Payment.user_id == user_id).all()
 
-        # Initialize response dictionary
         response = {
             "user_id": user.user_id,
             "is_payment_done": user.is_payment_done,
-            "payments": None  # Default value set to None
+            "payments": None  
         }
 
-        # Add payment details to the response if payments exist
         if payment_info:
             response["payments"] = []
             for payment in  payment_info:
@@ -265,7 +242,6 @@ def verify_payments_and_update_details(
                     "created_on": payment.created_on
                 })
 
-        # Update the is_payment_done status if all payments are done
         if  payment_info:
             user.is_payment_done = True
             db.add(user)
@@ -292,12 +268,10 @@ def update_payment(
     current_user: LmsUsers = Depends(get_current_user)
 ):
     try:
-    # Check if the payment exists
         db_payment = db.query(Payment).filter(Payment.payment_id == payment_id).first()
         if not db_payment:
             raise HTTPException(status_code=404, detail="Payment not found")
 
-        # Check if the provided course, standard, subject, module, and batch exist in the database
         existing_course = db.query(Course).filter(Course.id == payment.course_id).first()
         existing_standard = db.query(Standard).filter(Standard.id == payment.standard_id).first()
         existing_subject = db.query(Subject).filter(Subject.id == payment.subject_id).first()
@@ -307,7 +281,6 @@ def update_payment(
         if not all([existing_course, existing_standard, existing_subject, existing_module, existing_batch]):
             raise HTTPException(status_code=404, detail="One or more of course, standard, subject, module, or batch not found")
 
-        # Update the payment
         db_payment.course_id = payment.course_id
         db_payment.standard_id = payment.standard_id
         db_payment.subject_id = payment.subject_id
@@ -341,6 +314,3 @@ def delete_payment(payment_id: int, db: Session = Depends(get_db)):
         return {"message": "Payment deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete payment details: {str(e)}")
-# @router.get("/payments/", response_model=List[PaymentResponse])
-# def read_payments(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-#     return db.query(Payment).offset(skip).limit(limit).all()

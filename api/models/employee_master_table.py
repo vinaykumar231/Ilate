@@ -2,7 +2,6 @@ from sqlalchemy import Column, String, Integer, Date, ForeignKey
 from db.base import Base
 from sqlalchemy.orm import relationship
 from .Teacher import Teacher
-#from ..Model.teacher_contact_info import ContactInformation
 
 class Employee(Base):
     __tablename__ = "employee"
@@ -19,7 +18,6 @@ class Employee(Base):
     date_of_hire = Column(Date, nullable=True)
     date_of_termination = Column(Date, nullable=True)
 
-    # Define one-to-one relationship with ContactInformation
     teacher = relationship('Teacher', back_populates='employee')
     
    

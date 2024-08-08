@@ -56,7 +56,6 @@ def get_amount_by_criteria(
 @router.post("/fees/create_fees/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_student)])
 async def create_fee(fee_data: FeeCreate, db: Session = Depends(get_db)):
     try:
-        # Define a list of all related entities
         related_entities = [
             (Course, fee_data.course_id, "Course"),
             (Subject, fee_data.subject_id, "Subject"),
@@ -65,7 +64,6 @@ async def create_fee(fee_data: FeeCreate, db: Session = Depends(get_db)):
             (Batch, fee_data.batch_id, "Batch")
         ]
 
-        # Check existence of each related entity
         for entity_cls, entity_id, entity_name in related_entities:
             entity_exists = db.query(entity_cls).filter(entity_cls.id == entity_id).first()
             if not entity_exists:

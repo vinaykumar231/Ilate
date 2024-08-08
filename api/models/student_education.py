@@ -3,7 +3,6 @@ from db.base import Base
 from sqlalchemy.orm import relationship
 
 
-
 class PreEducation(Base):
     __tablename__ = 'pre_education'
 

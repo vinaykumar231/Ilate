@@ -14,7 +14,6 @@ class Image(Base):
     id_prof = Column(String(255))
     Address_prof = Column(String(255))
    
-# Function to save image to database
 def save_image_to_db(db: Session, user_id: int, id_prof: str = None, Address_prof: str = None):
     db_image = Image(user_id=user_id, id_prof=id_prof, Address_prof=Address_prof)
     db.add(db_image)
@@ -22,13 +21,10 @@ def save_image_to_db(db: Session, user_id: int, id_prof: str = None, Address_pro
     db.refresh(db_image)
     return db_image
 
-# Function to get image by image ID
 def get_image_by_user_id(user_id: int, db: Session):
     db_image = db.query(Image).filter(Image.user_id == user_id).first()
     return db_image
 
-
-# Function to update image in database
 def update_image_in_db(db: Session, user_id: int, id_prof: UploadFile = File(None), Address_prof: UploadFile = File(None)):
     db_image = db.query(Image).filter(Image.user_id == user_id).first()
     if db_image:
@@ -58,7 +54,6 @@ def update_image_in_db(db: Session, user_id: int, id_prof: UploadFile = File(Non
     else:
         raise HTTPException(status_code=404, detail="Image not found")
 
-# Function to delete image from database
 @staticmethod
 def delete_image_from_db(db: Session, user_id: int):
     db_image = db.query(Image).filter(Image.user_id == user_id).first()

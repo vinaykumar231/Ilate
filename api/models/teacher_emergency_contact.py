@@ -13,7 +13,6 @@ class EmergencyContact(Base):
     relation = Column(String(length=50))
     emergency_contact_number = Column(Integer)
 
-    # Define many-to-one relationship with Employee
     teacher = relationship("Teacher", back_populates="emergency_contact")
 
     

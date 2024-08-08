@@ -6,7 +6,6 @@ from ..schemas import BranchCreate, BranchUpdate
 
 router = APIRouter()
 
-# Create a new branch
 @router.post("/branches/", response_model=None)
 async def create_branch(branch_data: BranchCreate, db: Session = Depends(get_db)):
     try:
@@ -18,7 +17,6 @@ async def create_branch(branch_data: BranchCreate, db: Session = Depends(get_db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert branch")
 
-# Get all branches
 @router.get("/branches/", response_model=None)
 async def read_all_branches(db: Session = Depends(get_db)):
     try:
@@ -26,7 +24,6 @@ async def read_all_branches(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to fetch branch")
 
-# Get a specific branch by ID
 @router.get("/branches/{branch_id}", response_model=None)
 async def read_branch(branch_id: int, db: Session = Depends(get_db)):
     try:
@@ -37,7 +34,6 @@ async def read_branch(branch_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to fetch branch")
 
-# Update a branch by ID
 @router.put("/branches/{branch_id}", response_model=None)
 async def update_branch(branch_id: int, branch_data: BranchUpdate, db: Session = Depends(get_db)):
     try:
@@ -52,7 +48,6 @@ async def update_branch(branch_id: int, branch_data: BranchUpdate, db: Session =
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to update branch")
 
-# Delete a branch by ID
 @router.delete("/branches/{branch_id}", response_model=None)
 async def delete_branch(branch_id: int, db: Session = Depends(get_db)):
     try:

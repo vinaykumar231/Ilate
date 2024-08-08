@@ -2,11 +2,8 @@ from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db.session import get_db
-#from ..models.Questions import Question1 as QuestionModel
-#from ..models.Questions import Question1
 from pydantic import BaseModel, Field
 from ..schemas import QuestionCreate, QuestionGetResponse
-#from ..models.Questions import Question, save_upload
 from ..models import LmsUsers 
 from typing import List, Optional
 from fastapi import Form
@@ -23,7 +20,9 @@ from ..models import LessontestQuestion
 import difflib
 from PIL import Image
 import numpy as np
+from dotenv import load_dotenv
 
+load_dotenv()
 router = APIRouter()
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -44,7 +43,6 @@ def save_upload(upload_file: Optional[UploadFile]) -> Optional[str]:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(upload_file.file, buffer)
         
-        # Convert backslashes to forward slashes
         file_path = file_path.replace("\\", "/")
         return file_path
     except Exception as e:
@@ -70,17 +68,14 @@ async def create_question(
     db: Session = Depends(get_db)
 ):
     try:
-        # Check if the question_paper_id exists
         question_paper = db.query(QuestionPaper1).filter(QuestionPaper1.id == question_paper_id).first()
         if not question_paper:
             raise HTTPException(status_code=404, detail=f"Question paper with id {question_paper_id} not found")
 
-        # Check if the associated lesson exists
         lesson = db.query(Lesson).filter(Lesson.lesson_id == question_paper.lesson_id).first()
         if not lesson:
             raise HTTPException(status_code=404, detail=f"Lesson with id {question_paper.lesson_id} not found")
 
-        # Create Question instance
         db_question = LessontestQuestion(
             question_paper_id=question_paper_id,
             question_text=question_text,
@@ -99,7 +94,6 @@ async def create_question(
             per_question_marks=per_question_marks
         )
 
-        # Add to session and commit
         db.add(db_question)
         db.commit()
         db.refresh(db_question)
@@ -109,44 +103,11 @@ async def create_question(
     except HTTPException as he:
         raise he
     except Exception as e:
-        db.rollback()  # Rollback the transaction in case of error
+        db.rollback()  
         print(f"Detailed error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create question: {str(e)}")
    
-# def image_to_string(image_path):
-#     """Convert an image to a string representation."""
-#     try:
-#         img = Image.open(image_path)
-#         img_array = np.array(img)
-#         return img_array.tobytes().decode('latin-1')
-#     except Exception as e:
-#         print(f"Error processing image: {e}")
-#         return ""
-
-# def is_answer_correct(selected_ans, selected_ans_image, correct_ans, correct_ans_image):
-#     similarity_threshold = 0.9
-
-#     # Text comparison
-#     if selected_ans and correct_ans:
-#         selected_ans = selected_ans.lower().strip()
-#         correct_ans = correct_ans.lower().strip()
-#         if selected_ans == correct_ans:
-#             return True
-#         similarity = difflib.SequenceMatcher(None, selected_ans, correct_ans).ratio()
-#         if similarity >= similarity_threshold:
-#             return True
-
-#     # Image comparison
-#     if selected_ans_image and correct_ans_image:
-#         selected_img_str = image_to_string(selected_ans_image)
-#         correct_img_str = image_to_string(correct_ans_image)
-#         image_similarity = difflib.SequenceMatcher(None, selected_img_str, correct_img_str).ratio()
-#         if image_similarity >= similarity_threshold:
-#             return True
-
-#     return False
-
-base_url_path = "http://192.168.29.40:8000"
+base_url_path = os.getenv("BASE_URL_PATH")
 
 def prepend_base_url(path: Optional[str]) -> Optional[str]:
     if path:
@@ -170,7 +131,6 @@ async def answer_question(
     ).first()
     
     if not student_answer:
-        # Initialize student_answer if no previous results
         student_answer = StudentAnswer(
             user_id=current_user.user_id,
             question_paper_id=question.question_paper_id,
@@ -185,7 +145,6 @@ async def answer_question(
         db.refresh(student_answer)
 
     try:
-        # Function to get the option number based on the answer
         def get_option_number(answer):
             options = {
                 (question.option1_text or "").lower().strip(): "option1",
@@ -199,18 +158,15 @@ async def answer_question(
             }
             return options.get(answer.lower().strip())
 
-        # Get the option number for the user's answer
         user_option = get_option_number(user_answer)
 
         if not user_option:
             raise HTTPException(status_code=400, detail="Invalid answer")
 
-       
         is_correct = user_option == question.correct_ans_text
 
-        # Update student's answer statistics
         student_answer.total_questions += 1
-        student_answer.given_ans_text = user_option  # Store the option number (e.g., "option1")
+        student_answer.given_ans_text = user_option  
         student_answer.is_correct = is_correct
         if is_correct:
             student_answer.correct_answer += 1
@@ -250,7 +206,7 @@ async def answer_question(
             "correct_ans": question.correct_ans_text,
             "user_answer": user_answer,
             "user_answer_image": student_answer.given_ans_image,
-            "user_selected_option": user_option,  # This will be "option1", "option2", etc.
+            "user_selected_option": user_option,  
             "is_correct": is_correct,
             "obtain_marks": student_answer.score,
             "total_questions_answered": student_answer.total_questions,
@@ -263,13 +219,6 @@ async def answer_question(
         db.rollback()
         raise HTTPException(status_code=400, detail="Error updating the student answer")
 
-# base_url_path = "http://192.168.29.40:8000"
-
-# def prepend_base_url(path: Optional[str]) -> Optional[str]:
-#     if path:
-#         return f"{base_url_path}/{path}"
-#     return None
-
 @router.get("/lesson-test-questions/{question_id}", response_model=None)
 async def get_lesson_test_question(
     question_id: int,
@@ -277,14 +226,11 @@ async def get_lesson_test_question(
     current_user: LmsUsers = Depends(get_current_user)
 ):
     try:
-        # Retrieve question from the database using the provided question_id
         question = db.query(LessontestQuestion).filter(LessontestQuestion.id == question_id).first()
         
-        # Check if the question exists
         if question is None:
             raise HTTPException(status_code=404, detail="Question not found")
         
-        # Prepare the response data
         response_data = {
             "id": question.id,
             "question_paper_id": question.question_paper_id,
@@ -302,7 +248,6 @@ async def get_lesson_test_question(
             "per_question_marks": question.per_question_marks
         }
         
-        # Add correct answer fields if the user is an admin or teacher
         if current_user.user_type in ["admin", "teacher"]:
             response_data["correct_answer_text"] = question.correct_ans_text
             response_data["correct_answer_image"] = prepend_base_url(question.correct_ans_images)
@@ -312,8 +257,6 @@ async def get_lesson_test_question(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch question: {str(e)}")
 
-
-# Update Question
 @router.put("/questions/{question_id}", response_model=None)
 async def update_question(
     question_id: int,
@@ -333,14 +276,11 @@ async def update_question(
     db: Session = Depends(get_db)
 ):
     try:
-        # Retrieve the question from the database
         db_question = db.query(LessontestQuestion).filter(LessontestQuestion.id == question_id).first()
 
-        # Check if the question exists
         if db_question is None:
             raise HTTPException(status_code=404, detail="Question not found")
 
-        # Update the question text and difficulty level if provided
         if question_text:
             db_question.question_text = question_text
         if option1_text:
@@ -356,7 +296,6 @@ async def update_question(
         if difficulty_level:
             db_question.difficulty_level = difficulty_level
 
-        # Update image data if provided
         if question_image:
             question_image_path = save_upload(question_image)
             db_question.question_images = question_image_path
@@ -385,22 +324,17 @@ async def update_question(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# Delete Question
 @router.delete("/questions/{question_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def delete_question(
     question_id: int,
     db: Session = Depends(get_db)
 ):
     try:
-        # Retrieve the question from the database
         db_question = db.query(LessontestQuestion).filter(LessontestQuestion.id == question_id).first()
 
-        # Check if the question exists
         if db_question is None:
             raise HTTPException(status_code=404, detail="Question not found")
 
-        # Delete the question from the database
         db.delete(db_question)
         db.commit()
 

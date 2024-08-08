@@ -1,8 +1,6 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, Date,JSON, Boolean
 from sqlalchemy.orm import relationship
 from db.base import Base
-# from .Teacher import Teacher
-# from .course import Course
 
 class TeacherCourse(Base):
     __tablename__ = "teacher_courses1"
@@ -16,5 +14,4 @@ class TeacherCourse(Base):
 
     teacher_Assign = relationship("Teacher", back_populates="courses_by")
     course_Assign = relationship("Course_content", back_populates="teacher_by")
-
     user = relationship("LmsUsers", back_populates="teacher_courses")

@@ -2,8 +2,6 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from db.base import Base
 from sqlalchemy.orm import relationship, backref
 
-
-
 class ContactInformation(Base):
     __tablename__ = 'students_contact_info'
 

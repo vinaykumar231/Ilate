@@ -46,7 +46,6 @@ async def create_content(
 ):
     announcement_images_path = save_upload_file(announcement_images)
     try:
-        # Create a new Announcement object
         db_announcement = Announcement(
             title=title,
             announcement_text=announcement_text,
@@ -58,7 +57,6 @@ async def create_content(
         db.add(db_announcement)
         db.commit()
         db.refresh(db_announcement)
-
         return db_announcement 
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert an announcement")
@@ -70,7 +68,7 @@ async def get_announcement(announcement_id: int, db: Session = Depends(get_db)):
         if not announcement:
             raise HTTPException(status_code=404, detail="Announcement not found")
 
-        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+        base_url_path = os.getenv("BASE_URL_PATH")  
 
         announcement_images_path = announcement.announcement_images
         if announcement_images_path:
@@ -96,7 +94,7 @@ async def get_all_announcements(db: Session = Depends(get_db)):
         if not announcements:
             raise HTTPException(status_code=404, detail="No announcements found")
 
-        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+        base_url_path = os.getenv("BASE_URL_PATH")  
 
         announcements_response = []
         for announcement in announcements:
@@ -149,7 +147,7 @@ async def update_announcement(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update announcement: {str(e)}")
 
-    base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+    base_url_path = os.getenv("BASE_URL_PATH") 
     announcement_images_url = f"{base_url_path}/{announcement.announcement_images}" if announcement.announcement_images else None
 
     return {

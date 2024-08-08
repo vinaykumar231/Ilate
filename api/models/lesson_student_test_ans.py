@@ -14,10 +14,8 @@ class StudentAnswer(Base):
     is_correct = Column(Boolean, default=False) 
     correct_answer= Column(Integer, default=0)
     wrong_answer= Column(Integer, default=0)
-    #duration=Column(Integer, default=0)
     score = Column(Float)
     passed = Column(Boolean, default=False)
-    
     
     
     users = relationship("LmsUsers", back_populates="answers")

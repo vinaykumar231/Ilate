@@ -7,9 +7,7 @@ from ..schemas import DemoformfillCreate
 from datetime import datetime
 import pytz
 
-
 router = APIRouter()
-
 
 @router.post("/demoformfill/", response_model=None,  dependencies=[Depends(JWTBearer())])
 def create_demoformfill(demo_form: DemoformfillCreate, current_user:LmsUsers = Depends(get_current_user),
@@ -81,20 +79,4 @@ def delete_demoformfill(demoformfill_id: int, db: Session = Depends(get_db)):
 
     
 
-# def get_demo_videos(db: Session, course_id: int, subject_id: int, standard_id: int) -> List[Dict[str, str]]:
-#     course = db.query(Course).filter(Course.id == course_id).first()
-#     subject = db.query(Subject).filter(Subject.id == subject_id, Subject.course_id == course_id).first()
-#     standard = db.query(Standard).filter(Standard.id == standard_id, Standard.subject_id == subject_id).first()
-#
-#     if not course or not subject or not standard:
-#         return []
-#
-#     demo_videos = db.query(DemoVideo).filter(
-#         DemoVideo.course_id == course.id,
-#         DemoVideo.subject_id == subject.id,
-#         DemoVideo.standard_id == standard.id
-#     ).all()
-#
-#     demo_videos_list = [{"title": video.title, "url": video.url} for video in demo_videos]
-#
-#     return demo_videos_list
+

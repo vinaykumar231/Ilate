@@ -8,9 +8,6 @@ from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_tea
 
 router = APIRouter()
 
-
-
-# Create a new Batch
 @router.post("/batches/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def create_batch(batch_data: BatchCreate, db: Session = Depends(get_db)):
     try:
@@ -22,7 +19,6 @@ async def create_batch(batch_data: BatchCreate, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert batch")
 
-# Get all batches
 @router.get("/batches/", response_model=None)
 async def read_all_batches(db: Session = Depends(get_db)):
     try:
@@ -30,7 +26,6 @@ async def read_all_batches(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=404, detail=" failed to fetch batch")
 
-# Get a specific batch by ID
 @router.get("/batches/{batch_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def read_batch(batch_id: int, db: Session = Depends(get_db)):
     try:
@@ -41,7 +36,6 @@ async def read_batch(batch_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to fetch batch")
 
-# Update a batch by ID
 @router.put("/batches/{batch_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def update_batch(batch_id: int, batch_data: BatchUpdate, db: Session = Depends(get_db)):
     try:
@@ -56,7 +50,6 @@ async def update_batch(batch_id: int, batch_data: BatchUpdate, db: Session = Dep
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to update batch")
 
-# Delete a batch by ID
 @router.delete("/batches/{batch_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_batch(batch_id: int, db: Session = Depends(get_db)):
     try:

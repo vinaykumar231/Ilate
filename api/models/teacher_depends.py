@@ -12,5 +12,4 @@ class Dependents(Base):
     realtion = Column(String(length=50))
     date_of_birth = Column(Date)
 
-    # Define many-to-one relationship with Teacher
     teacher = relationship("Teacher", back_populates="dependents")

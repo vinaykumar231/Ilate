@@ -7,10 +7,9 @@ from pydantic import BaseModel
 class Review(BaseModel):
     name: Optional[str] = "Unknown"
     text: Optional[str] = ""
-    stars: Optional[float] = 0.0  # Added stars field
+    stars: Optional[float] = 0.0  
     reviewsCount: Optional[float] = 0.0 
     
-
 router = APIRouter()
 
 APIFY_TOKEN = os.getenv("APIFY_TOKEN", "apify_api_0f3ijHG3nSUNDpBYbAec6BrCAA1SBA3siQFr")
@@ -26,14 +25,13 @@ async def get_google_map_reviews():
                 data = response.json()
                 reviews = []
                 for item in data:
-                    # Extract stars directly if it's available in the API response
-                    stars = item.get("stars", 0.0)  # Adjust the field name based on your API response
+                    stars = item.get("stars", 0.0)  
 
                     reviews.append(Review(
                         name=item.get("name", "Unknown"),
                         text=item.get("text", ""),
                         time=item.get("time", ""),
-                        stars=stars,  # Include stars in Review
+                        stars=stars,  
                         reviewsCount=item.get("reviewsCount", 0.0)
                     ))
                 return reviews

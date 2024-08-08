@@ -7,7 +7,6 @@ from auth.auth_bearer import JWTBearer, get_admin
 
 router = APIRouter()
 
-# Get all companies
 @router.get("/companies/", response_model=None)
 async def read_companies(db: Session = Depends(get_db)):
     try:
@@ -15,7 +14,6 @@ async def read_companies(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail="company not found")
 
-# Get a specific company by ID
 @router.get("/companies/{company_id}", response_model=None)
 async def read_company(company_id: int, db: Session = Depends(get_db)):
     try:
@@ -26,7 +24,6 @@ async def read_company(company_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to fetch company")
 
-# Create a new company
 @router.post("/companies/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def create_company(company_data: CompanyCreate, db: Session = Depends(get_db)):
     try:
@@ -38,7 +35,6 @@ async def create_company(company_data: CompanyCreate, db: Session = Depends(get_
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert  company")
 
-# Update a company by ID
 @router.put("/companies/{company_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def update_company(company_id: int, company_data: CompanyUpdate, db: Session = Depends(get_db)):
     try:
@@ -53,7 +49,6 @@ async def update_company(company_id: int, company_data: CompanyUpdate, db: Sessi
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to update company")
 
-# Delete a company by ID
 @router.delete("/companies/{company_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_company(company_id: int, db: Session = Depends(get_db)):
     try:

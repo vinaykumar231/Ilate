@@ -7,8 +7,7 @@ from ..schemas import (StudentContactCreate, PreEducationCreate, ParentCreate,
                        StudentContactUpdate, PreEducationUpdate, ParentInfoUpdate, CourseDetailsCreate, CourseDetailsUpdate,StudentUpdate_data, ContactInfoUpdate_data,
                        PreEducationUpdate_data, ParentInfoUpdate_data)
 from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_or_student
-#from ..models.Students import save_upload
-from ..schemas import StudentCreate ,StudentUpdate#StudentUpdate_all_data
+from ..schemas import StudentCreate ,StudentUpdate
 from datetime import datetime
 from typing import List, Union
 from sqlalchemy import desc
@@ -234,16 +233,14 @@ async def fill_admission_form(
     if existing_form:
         raise HTTPException(status_code=400, detail="Admission form has already been submitted")
     
-    # Handle file uploads
     id_proof_path = save_upload_file(id_proof)
     address_proof_path = save_upload_file(address_proof)
-    #pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     try:
         parent_user_id = p_primary_email
         parent_password = p_first_name + "@123"
         hashed_password = bcrypt.hashpw((parent_password).encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        # Create student record
+        
         db_student = Student(
             user_id=current_user.user_id,
             first_name=first_name,
@@ -262,8 +259,6 @@ async def fill_admission_form(
         db.commit()
         db.refresh(db_student)
         
-
-        # Create contact information record
         db_contact_info = ContactInformation(
             primary_no=s_primary_no,
             secondary_no=s_secondary_no,
@@ -275,7 +270,6 @@ async def fill_admission_form(
         )
         db.add(db_contact_info)
 
-        # Create pre-education record
         db_pre_education = PreEducation(
             student_class=student_class,
             school=school,
@@ -285,7 +279,6 @@ async def fill_admission_form(
         )
         db.add(db_pre_education)
 
-        # Create parent user record
         db_lmsuser = LmsUsers(
             user_name=p_first_name,
             user_email=p_primary_email,
@@ -300,7 +293,6 @@ async def fill_admission_form(
         db.commit()
         db.refresh(db_lmsuser)
 
-        # Create parent information record
         db_parent_info = Parent(
             user_id=db_lmsuser.user_id,
             p_first_name=p_first_name,
@@ -324,7 +316,6 @@ async def fill_admission_form(
         if not admin_course:
             raise HTTPException(status_code=404, detail="Selected course not found or not active. Please choose a valid course.")
         
-        # Create course details record
         db_course_details = CourseDetails(
             subjects=subject,
             standards=standard,
@@ -344,7 +335,6 @@ async def fill_admission_form(
 
         db.commit()
 
-        # Send email to parent
         email_body = f"""
         <p>Dear {p_first_name},</p>
         <p>Your child, student ID :{db_student.id} {first_name} {last_name}, has been successfully enrolled. Here are your login credentials:</p>
@@ -379,7 +369,6 @@ def get_all_admissions(db: Session = Depends(get_db)):
         
         all_students_data = []
         for student in students:
-            # Build the full URL for the ID proof and address proof
             id_proof_url = f"{base_url_path}/{student.id_proof}" if student.id_proof else None
             address_proof_url = f"{base_url_path}/{student.Address_proof}" if student.Address_proof else None
 
@@ -441,15 +430,12 @@ def get_all_admissions(db: Session = Depends(get_db)):
 @router.get("/admission/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_student)])
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     try:
-        # Fetch student details
         student = get_student(db, user_id)
         if student is None:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Check payment status
         is_payment_done = get_payment_status_by_user_id(db, user_id)
 
-        # Build the full URL for the ID proof and address proof
         id_proof_url = f"{base_url_path}/{student.id_proof}" if student.id_proof else None
         address_proof_url = f"{base_url_path}/{student.Address_proof}" if student.Address_proof else None
 
@@ -507,8 +493,6 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
             }
         }
 
-        # Fetch payment details if payment is done
-        
         payment = db.query(Payment).filter(Payment.user_id == user_id).order_by(desc(Payment.created_on)).first()
         if payment:
                 utc_now = pytz.utc.localize(datetime.utcnow())
@@ -539,12 +523,10 @@ async def update_admission_form(
     current_user: LmsUsers = Depends(get_current_user)
 ):
     try:
-        # Check if the student exists
         existing_student = db.query(Student).filter(Student.id == student_id).first()
         if not existing_student:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Update student details
         if student_update.first_name is not None:
             existing_student.first_name = student_update.first_name
         if student_update.middle_name is not None:
@@ -565,8 +547,6 @@ async def update_admission_form(
             existing_student.date_of_completion = student_update.date_of_completion
         db.add(existing_student)
         db.commit()
-
-        # Update contact information
        
         existing_contact_info = db.query(ContactInformation).filter(ContactInformation.student_id == student_id).first()
         if not existing_contact_info:
@@ -586,7 +566,7 @@ async def update_admission_form(
                     existing_contact_info.permanent_address = contact_info.permanent_address
         db.add(existing_contact_info)
         db.commit()    
-        # Update pre-education details
+
         existing_pre_education = db.query(PreEducation).filter(PreEducation.student_id == student_id).first()
         if not existing_pre_education:
             raise HTTPException(status_code=404, detail="Student pre_education not found")
@@ -602,7 +582,6 @@ async def update_admission_form(
         db.add(existing_pre_education)
         db.commit()
         
-        # Update parent information
         existing_parent_info = db.query(Parent).filter(Parent.student_id == student_id).first()
         if not existing_pre_education:
             raise HTTPException(status_code=404, detail="Student pre_education not found")
@@ -622,7 +601,6 @@ async def update_admission_form(
         db.add(existing_parent_info)   
         db.commit()
 
-        # Prepare response data
         response_data = {
             "student_id": existing_student.id,
             "first_name": existing_student.first_name,
@@ -671,27 +649,22 @@ async def delete_admission_form(user_id: int, db: Session = Depends(get_db)):
         if not existing_form:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Delete associated contact information, pre-education, parent, and student records
         db.query(ContactInformation).filter(ContactInformation.student_id == existing_form.id).delete()
         db.query(PreEducation).filter(PreEducation.student_id == existing_form.id).delete()
         db.query(Parent).filter(Parent.student_id == existing_form.id).delete()
         
-        # Remove ID proof and address proof files
         if existing_form.id_proof and os.path.exists(existing_form.id_proof):
             os.remove(existing_form.id_proof)
         if existing_form. Address_proof and os.path.exists(existing_form. Address_proof):
             os.remove(existing_form. Address_proof)
         
-        # Delete the student record
         db.delete(existing_form)
         db.commit()
 
-        # Update the corresponding LmsUsers object
         lms_user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
         if not lms_user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Modify user_type and is_formsubmited attributes
         lms_user.user_type = 'student'
         lms_user.is_formsubmited = False
         lms_user.is_payment_done = False

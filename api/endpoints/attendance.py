@@ -47,7 +47,6 @@ def create_attendance(
         if not student:
             raise HTTPException(status_code=404, detail=f"Student with id {student_id} not found")
         
-        # Check if the attendance record already exists for the given student and course content on the same date
         existing_attendance = db.query(Attendance).filter(
             Attendance.student_id == student_id,
             Attendance.course_content_id == course_content_id,
@@ -55,10 +54,8 @@ def create_attendance(
         ).first()
         
         if existing_attendance:
-            # Update existing record
             existing_attendance.status = [student_status_list[i]]
         else:
-            # Create new record
             db_attendance = Attendance(
                 student_id=student_id,
                 course_content_id=course_content_id,
@@ -68,8 +65,6 @@ def create_attendance(
             db.add(db_attendance)
         
         db.commit()
-        #db.refresh(existing_attendance)
-        #for response
         attendance_records.append(AttendanceBase(
             student_id=student_id,
             course_content_id=course_content_id,
@@ -84,15 +79,10 @@ def get_attendance(
     student_ids: str,
     db: Session = Depends(get_db)
 ):
-    # Split the comma-separated student IDs into a list
     student_ids_list = student_ids.split(',')
-
-    # Query attendance records for the given student_ids
     attendance_records = db.query(Attendance).filter(Attendance.student_id.in_(student_ids_list)).all()
-    
     if not attendance_records:
         raise HTTPException(status_code=404, detail="No attendance records found for the provided student IDs")
-    
     return attendance_records
 
 @router.get("/attendance_students/", response_model=None)

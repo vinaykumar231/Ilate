@@ -39,7 +39,6 @@ async def create_student(
     db: Session = Depends(get_db)
 ):
     try:
-        # Save uploaded files if provided
         id_proof_path = save_upload(id_proof) if id_proof else None
         address_proof_path = save_upload(Address_proof) if Address_proof else None
 
@@ -47,7 +46,6 @@ async def create_student(
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Create Student instance
         student = Student(
             user_id= user.user_id,
             first_name=first_name,
@@ -98,12 +96,10 @@ async def update_student(
     db: Session = Depends(get_db)
 ):
     try:
-        # Retrieve the student from the database
         student = db.query(Student).filter(Student.student_id == student_id).first()
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Update the student's attributes with the new data
         if user_id:
             user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
             if not user:
@@ -126,7 +122,6 @@ async def update_student(
         if date_of_completion:
             student.date_of_completion = date_of_completion
 
-        # Save uploaded files if provided
         if id_proof:
             id_proof_path = save_upload(id_proof)
             student.id_proof = id_proof_path
@@ -147,12 +142,10 @@ async def delete_student(
     db: Session = Depends(get_db)
 ):
     try:
-        # Retrieve the student from the database
         student = db.query(Student).filter(Student.student_id == student_id).first()
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
 
-        # Delete the student record
         db.delete(student)
         db.commit()
 

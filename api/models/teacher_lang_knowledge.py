@@ -11,6 +11,5 @@ class LanguagesSpoken(Base):
     Teacher_id = Column(Integer, ForeignKey("teachers.Teacher_id"))
     languages = Column(String(length=50))
 
-    # Define many-to-one relationship with Employee
     teacher = relationship("Teacher", back_populates="languages_spoken")
     

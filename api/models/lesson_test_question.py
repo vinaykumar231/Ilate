@@ -8,8 +8,6 @@ import shutil
 import uuid
 import os
 
-
-
 class LessontestQuestion(Base):
     __tablename__ = 'lesson_test_Questions'
     
@@ -32,8 +30,6 @@ class LessontestQuestion(Base):
     
     question_paper = relationship("QuestionPaper1", back_populates="questions")
     
-
-# Function to save file
 
 def save_upload(upload_file: UploadFile) -> str:
     unique_filename = str(uuid.uuid4()) + "_" + upload_file.filename

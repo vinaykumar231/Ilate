@@ -12,5 +12,4 @@ class Installment(Base):
     installment_number = Column(Integer)
     installments = Column(JSON) 
 
-    # Establishing relationship with payments
     payment = relationship("Payment", back_populates="installments")

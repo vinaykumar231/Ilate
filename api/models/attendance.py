@@ -12,8 +12,6 @@ class Attendance(Base):
     status = Column(JSON) 
 
 
-    #students = relationship("Student", back_populates="attendances")
-
     course_content = relationship("Course_content", back_populates="attendances")
     
 

@@ -40,33 +40,6 @@ async def lms_register(data: UserCreate, db: Session = Depends(get_db)):
     return user_ops.lms_register(data.model_dump(), db)
 
 
-# @router.put("/update/lms_user/{user_id}", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
-# async def lms_user_update(user_data: UpdateUser, user_id: int, current_user: User = Depends(get_current_user),
-#                           db: Session = Depends(get_db)):
-#     return user_ops.lms_user_update(user_data, user_id, db)
-
-# @router.put("/update/lms_user/{user_id}", dependencies=[Depends(JWTBearer())])
-# async def lms_user_update(user_data: UpdateUser, user_id: int,
-#                           current_user: LmsUsers = Depends(get_current_user),
-#                           db: Session = Depends(get_db)):
-#     try:
-#         if user_data.user_type and user_data.user_type not in {"user", "teacher", "admin"}:
-#             raise HTTPException(status_code=403, detail="Invalid user type. Allowed values: user, teacher, admin")
-#
-#         if current_user.user_type == "admin" or current_user.user_id == user_id:
-#             if user_data.current_password:
-#                 if not user_ops.validate_password(user_data.current_password):
-#                     raise HTTPException(status_code=400, detail="Invalid current password")
-#
-#                 if user_data.new_password:
-#                     user_ops.change_password(user_data.current_password, user_data.new_password, user_id, db)
-#         else:
-#             raise HTTPException(status_code=403, detail="Forbidden: You are not authorized to update this user's data.")
-#     except Exception as e:
-#         raise HTTPException(status_code=404, detail=f"Error: {str(e)}")
-
-#Nikunj
-
 @router.get("/read/lms_user", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def searchall(user_id: int = None, user_type: UserType = None, page_num: int = 1, page_size: int = 20,
                     db: Session = Depends(get_db)):
@@ -194,7 +167,6 @@ async def change_password(current_password: str, new_password: str, confirm_new_
 def generate_otp():
     return random.randint(100000, 999999)
 
-# Function to send OTP email
 async def send_otp_email(email: str, otp: int):
     otp_email_body = f"""
     <p>Dear User,</p>
@@ -222,7 +194,6 @@ async def send_otp(email: str, db: Session = Depends(get_db)):
     utc_now = pytz.utc.localize(datetime.utcnow())
     ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
     
-    # Update the existing user record
     user.reset_otp = otp
     user.otp_generated_at = ist_now
     
@@ -238,15 +209,12 @@ async def reset_password(email: str, otp: int, new_password: str, confirm_new_pa
         if not user:
             raise HTTPException(status_code=404, detail=f"User with email {email} not found")
 
-        # Verify OTP
         if user.reset_otp != otp:
             raise HTTPException(status_code=400, detail="Invalid OTP")
 
-        # Check OTP expiration
         ist_tz = pytz.timezone('Asia/Kolkata')
         current_time = datetime.now(ist_tz)
         
-        # Ensure otp_generated_at is timezone-aware
         otp_generated_at = user.otp_generated_at.replace(tzinfo=pytz.UTC).astimezone(ist_tz)
         
         otp_age = current_time - otp_generated_at
@@ -259,13 +227,11 @@ async def reset_password(email: str, otp: int, new_password: str, confirm_new_pa
         hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
         user.user_password = hashed_new_password
         
-        # Clear the OTP after successful password reset
         user.reset_otp = None
         user.otp_generated_at = None
 
         db.commit()
 
-        # Send email for password reset
         contact = "900-417-3181"
         email_contact = "vinay@example.com"
 
@@ -292,26 +258,3 @@ async def reset_password(email: str, otp: int, new_password: str, confirm_new_pa
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-##########################################################################################
-
-
-# @router.get("/get_my_profile", dependencies=[Depends(JWTBearer())])
-# async def get_current_user_details(current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
-#     user_id = current_user.user_id
-#     return user_ops.lms_user_update(user_id, db)
-
-
-# @router.post('/update/change_password', dependencies=[Depends(JWTBearer())])
-# async def change_password(credential: ChangePassword, user_id: int = Depends(get_user_id_from_token),
-#                           db: Session = Depends(get_db)):
-#     return user_ops.change_password(credential, user_id, db)
-
-# @router.put("/admin/usertype_change", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
-# def change_user_type(user_id: int, new_user_type: UserType, db: Session = Depends(get_db)):
-#     user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
-#     if user is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     user.user_type = new_user_type.value
-#     db.commit()
-#
-#     return {"message": f"User type changed to {new_user_type}"}

@@ -47,7 +47,6 @@ async def create_question(
 ):
     try:
         
-        # Create Question instance
         db_question = DiscountQuestion(
             standard_id=standard_id,
             subject_id=subject_id,
@@ -60,7 +59,6 @@ async def create_question(
             difficulty_level=difficulty_level
         )
         
-        # Add to session and commit
         db.add(db_question)
         db.commit()
         db.refresh(db_question)
@@ -68,10 +66,8 @@ async def create_question(
         return db_question
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create question: {str(e)}")
-    
-# Function to check the similarity of two answers
+
 def is_answer_correct(selected_ans, correct_ans):
-    # Convert both answers to lowercase for case-insensitive comparison
     selected_ans = selected_ans.lower()
     correct_ans = correct_ans.lower()
     similarity = difflib.SequenceMatcher(None, selected_ans, correct_ans).ratio()
@@ -99,7 +95,6 @@ async def answer_question(
     ).first()
     
     if not user_overall_result:
-        # Initialize user_overall_result if no previous results
         user_overall_result = DiscountAssessmentResut(
             user_id=current_user.user_id,
             total_questions=0,
@@ -113,23 +108,19 @@ async def answer_question(
         db.refresh(user_overall_result)
 
     try:
-        # Check if the answer is correct
         is_correct = is_answer_correct(selected_ans_text, question.correct_ans_text)
 
-        # Update user's overall statistics
         user_overall_result.total_questions += 1
         if is_correct:
             user_overall_result.correct_answers += 1
         else:
             user_overall_result.wrong_answer += 1
-        # Calculate score with negative marking
         obtain_marks = user_overall_result.correct_answers * 2  # 2 point for each correct answer
         # wrong_points = user_overall_result.wrong_answer * 0.25  # 0.25 point deduction for each wrong answer
         # total_points = correct_points - wrong_points
         total_marks = user_overall_result.total_questions*2 
         user_overall_result.score = (obtain_marks / total_marks) * 100 if total_marks > 0 else 0
         
-        # Ensure score doesn't go below 0
         user_overall_result.score = max(user_overall_result.score, 0)
         user_overall_result.score = min(user_overall_result.score, 100)
         user_overall_result.passed = user_overall_result.score >= 75
@@ -186,7 +177,6 @@ async def get_question_paper(
     limit: int = 10,
     db: Session = Depends(get_db)
 ):
-    # Query to get questions with subject and standard information
     questions = db.query(DiscountQuestion, Subject.name.label('subject_name'), Standard.name.label('standard_name'))\
         .join(Subject, DiscountQuestion.subject_id == Subject.id)\
         .join(Standard, DiscountQuestion.standard_id == Standard.id)\
@@ -197,7 +187,6 @@ async def get_question_paper(
     if not questions:
         raise HTTPException(status_code=404, detail="No questions found for the given standard and subject")
     
-    # Prepare the response
     result = []
     for question, subject_name, standard_name in questions:
         result.append(QuestionPaperResponse(
@@ -217,14 +206,6 @@ async def get_question_paper(
     
     return result
 
-
-# base_url_path = os.getenv("BASE_URL_PATH")
-
-# def prepend_base_url(path: Optional[str]) -> Optional[str]:
-#     if path:
-#         return f"{base_url_path}/{path}"
-#     return None
-
 @router.get("/Discount_questions/{question_id}", response_model=None)
 async def get_lesson_test_question(
     question_id: int,
@@ -232,14 +213,11 @@ async def get_lesson_test_question(
     current_user: LmsUsers = Depends(get_current_user)
 ):
     try:
-        # Retrieve question from the database using the provided question_id
         question = db.query(DiscountQuestion).filter(DiscountQuestion.question_id == question_id).first()
         
-        # Check if the question exists
         if question is None:
             raise HTTPException(status_code=404, detail="Question not found")
         
-        # Prepare the response data
         response_data = {
             "question_id": question.question_id,
             "question_text": question.question_text,
@@ -251,7 +229,6 @@ async def get_lesson_test_question(
             
         }
         
-        # Add correct answer fields if the user is an admin or teacher
         if current_user.user_type in ["admin", "teacher"]:
             response_data["correct_answer_text"] = question.correct_ans_text
             
@@ -261,10 +238,6 @@ async def get_lesson_test_question(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch question: {str(e)}")
 
-
-
-# Update Question
-# Update Question
 @router.put("/Discount_questions/{question_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def update_question(
     question_id: int,
@@ -278,14 +251,11 @@ async def update_question(
     db: Session = Depends(get_db)
 ):
     try:
-        # Retrieve the question from the database
         db_question = db.query(DiscountQuestion).filter(DiscountQuestion.question_id == question_id).first()
 
-        # Check if the question exists
         if db_question is None:
             raise HTTPException(status_code=404, detail="Question not found")
 
-        # Update the question text and difficulty level if provided
         if question_text:
             db_question.question_text = question_text
         if option1_text:
@@ -300,16 +270,12 @@ async def update_question(
             db_question.correct_ans_text = correct_answer_text
         if difficulty_level:
             db_question.difficulty_level = difficulty_level
-
-        # Commit the changes
         db.commit()
 
         return {"message": "Question has been updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update question: {str(e)}")
 
-
-# Delete Question
 @router.delete("/Discount_questions/{question_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def delete_question(
     question_id: int,

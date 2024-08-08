@@ -72,7 +72,7 @@ async def create_content(
         db.commit()
         db.refresh(db_content)
 
-        return {"file_paths": file_paths}  # Returning the list of file paths
+        return {"file_paths": file_paths}  
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert content")
 
@@ -121,7 +121,6 @@ async def create_lesson_and_content(
     if not course_content:
         raise HTTPException(status_code=404, detail="No assigned course content found for the given ID")
 
-    # Create new lesson
     new_lesson = Lesson(
         title=lesson_title,
         course_content_id=course_content.id
@@ -175,7 +174,6 @@ async def get_lessons_and_content_based_on_content_id(
     course_content_id: int,
     db: Session = Depends(get_db)
 ):
-    # Check if the course content exists
     course_content = db.query(Course_content).filter(Course_content.id == course_content_id).first()
     if not course_content:
         raise HTTPException(status_code=404, detail="Course content not found")
@@ -184,21 +182,18 @@ async def get_lessons_and_content_based_on_content_id(
     if not contents:
         raise HTTPException(status_code=404, detail="No lessons found for this course content")
     
-    base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+    base_url_path = os.getenv("BASE_URL_PATH")  
     result = []
     
     for content in contents:
         
         lesson_data = {
             "lesson_id": content.lesson.lesson_id,  
-            "title": content.lesson.title,  
-            #"description": content.lesson.description,  
+            "title": content.lesson.title,   
             "course_content_id": content.lesson.course_content_id,
             "content_info": {  
                 "id": content.id,
-                #"name": content.name,
                 "description": content.content_description,
-                #"content_type": content.course_content_type,
                 "content_path": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
             }
         }
@@ -218,15 +213,13 @@ async def get_all_content(db: Session = Depends(get_db)):
         if not contents:
             raise HTTPException(status_code=404, detail="No content found")
         
-        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+        base_url_path = os.getenv("BASE_URL_PATH")  
 
         all_content_data = []
         for content in contents:
             content_data = {
                 "id": content.id,
-                #"name": content.name,
                 "description": content.content_description,
-                #"content_type": content.content_type,
                 "lesson_id": content.lesson_id,
                 "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
             }
@@ -243,13 +236,11 @@ async def get_content_by_id(content_id: int, db: Session = Depends(get_db)):
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
         
-        base_url_path = os.getenv("BASE_URL_PATH")  # Your base URL path
+        base_url_path = os.getenv("BASE_URL_PATH")  
 
         content_data = {
             "id": content.id,
-            #"name": content.name,
             "description": content.content_description,
-            #"content_type": content.content_type,
             "lesson_id": content.lesson_id,
             "content_paths": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
         }
@@ -295,7 +286,6 @@ def save_upload(files: List[UploadFile]) -> List[str]:
             with open(file_path, "wb") as buffer:
                 shutil.copyfileobj(upload_file.file, buffer)
             
-            # Convert backslashes to forward slashes
             file_path = file_path.replace("\\", "/")
             file_paths.append(file_path)
         return file_paths
@@ -320,31 +310,25 @@ async def update_content(
         original_content_path_count = len(db_content.content_path)
         original_content_paths = db_content.content_path[:]
 
-        # Update name and description if provided
         if name is not None:
             db_content.name = name
         if description is not None:
             db_content.description = description
 
-        # Update content_type if provided
         if content_type is not None:
             db_content.content_type = content_type
 
-        # Update lesson_id
         db_content.lesson_id = lesson_id
 
-        # Process uploaded files if provided
         if files:
             content_path_list = save_upload(files)
             db_content.content_path = content_path_list
 
         new_content_path_count = len(db_content.content_path)
 
-        # Check if the number of files has changed
         if new_content_path_count > original_content_path_count:
             increment_content_file_count(db, db_content.id)
         elif new_content_path_count < original_content_path_count:
-            # Delete excess files from storage
             excess_files = original_content_paths[new_content_path_count:]
             for file_path in excess_files:
                 delete_file_from_storage(file_path)
@@ -355,8 +339,6 @@ async def update_content(
     except Exception as e:
         raise HTTPException(status_code=500, detail="failed to update content")
 
-
-    
 
 @router.delete("/content/{content_id}", dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def delete_content(content_id: int, db: Session = Depends(get_db)):
@@ -377,46 +359,3 @@ def delete_content(content_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail="failed to delete content")
     
-# Get all contents
-# @router.get("/contents/", response_model=None)
-# async def read_contents(db: Session = Depends(get_db)):
-#     return db.query(Content).all()
-
-# # Get a specific content by ID
-# @router.get("/contents/{content_id}", response_model=None)
-# async def read_content(content_id: int, db: Session = Depends(get_db)):
-#     content = db.query(Content).filter(Content.id == content_id).first()
-#     if content is None:
-#         raise HTTPException(status_code=404, detail="content not found")
-#     return content
-
-# # Create a new content
-# @router.post("/contents/", response_model=None)
-# async def create_content(content_data: ContentCreate, db: Session = Depends(get_db)):
-#     content = Content(**content_data.dict())
-#     db.add(content)
-#     db.commit()
-#     db.refresh(content)
-#     return content
-
-# # Update a content by ID
-# @router.put("/contents/{content_id}", response_model=None)
-# async def update_content(content_id: int, content_data: ContentUpdate, db: Session = Depends(get_db)):
-#     content = db.query(Content).filter(Content.id == content_id).first()
-#     if content is None:
-#         raise HTTPException(status_code=404, detail="content not found")
-#     for key, value in content_data.dict().items():
-#         setattr(content, key, value)
-#     db.commit()
-#     db.refresh(content)
-#     return content
-
-# # Delete a content by ID
-# @router.delete("/contents/{content_id}", response_model=None)
-# async def delete_content(content_id: int, db: Session = Depends(get_db)):
-#     content = db.query(Content).filter(Content.id == content_id).first()
-#     if content is None:
-#         raise HTTPException(status_code=404, detail="Content not found")
-#     db.delete(content)
-#     db.commit()
-#     return content

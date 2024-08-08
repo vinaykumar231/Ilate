@@ -54,9 +54,6 @@ def get_all_teacher( db: Session):
         .all()
 
 
-# def get_teacher(db: Session,user_id: int):
-#     return db.query(Employee).filter(Teacher.user_id == user_id).first()
-
 def get_employee(db: Session,Teacher_id: int):
     return db.query(Employee).filter(Employee.Teacher_id == Teacher_id).first()
 
@@ -229,13 +226,71 @@ async def fill_teacher_data(
         raise HTTPException(status_code=500, detail=f"Failed to create teacher details: {str(e)}")
 
 
-@router.get("/teachers/get_all", response_model=None, dependencies=[Depends(JWTBearer(get_admin))])
+@router.get("/teachers/get_all", response_model=None,dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def get_all_teachers(db: Session = Depends(get_db)):
     try:
         teachers = get_all_teacher(db)
         if not teachers:
             raise HTTPException(status_code=404, detail="Teachers not found")
-        return teachers
+        
+        teachers_data = []
+        for teacher in teachers:
+            contact_info = teacher.contact_information[0] if teacher.contact_information else None
+            dependent = teacher.dependents[0] if teacher.dependents else None
+            education = teacher.educations[0] if teacher.educations else None
+            emergency_contact = teacher.emergency_contact[0] if teacher.emergency_contact else None
+            language_spoken = teacher.languages_spoken[0] if teacher.languages_spoken else None
+            skill = teacher.skills[0] if teacher.skills else None
+            
+            teacher_data = {
+                "Teacher_id": teacher.Teacher_id,
+                "user_id": teacher.user_id,
+                "name": teacher.name,
+                "email": teacher.email,
+                "contact_info": {
+                    "primary_number": getattr(contact_info, 'primary_number', None),
+                    "secondary_number": getattr(contact_info, 'secondary_number', None),
+                    "primary_email_id": getattr(contact_info, 'primary_email_id', None),
+                    "secondary_email_id": getattr(contact_info, 'secondary_email_id', None),
+                    "current_address": getattr(contact_info, 'current_address', None),
+                    "permanent_address": getattr(contact_info, 'permanent_address', None)
+                },
+                "dependent": {
+                    "id": getattr(dependent, 'id', None),
+                    "dependent_name": getattr(dependent, 'dependent_name', None),
+                    "relation": getattr(dependent, 'realtion', None),  
+                    "date_of_birth": getattr(dependent, 'date_of_birth', None)
+                },
+                "education": {
+                    "id": getattr(education, 'id', None),
+                    "education_level": getattr(education, 'education_level', None),
+                    "institution": getattr(education, 'institution', None),
+                    "specialization": getattr(education, 'specialization', None),
+                    "field_of_study": getattr(education, 'field_of_study', None),
+                    "year_of_passing": getattr(education, 'year_of_passing', None),
+                    "percentage": getattr(education, 'percentage', None)
+                },
+                "emergency_contact": {
+                    "id": getattr(emergency_contact, 'id', None),
+                    "emergency_contact_name": getattr(emergency_contact, 'emergency_contact_name', None),
+                    "relation": getattr(emergency_contact, 'relation', None),
+                    "emergency_contact_number": getattr(emergency_contact, 'emergency_contact_number', None)
+                },
+                "languages_spoken": {
+                    "id": getattr(language_spoken, 'id', None),
+                    "languages": getattr(language_spoken, 'languages', None)
+                },
+                "skill": {
+                    "id": getattr(skill, 'id', None),
+                    "skill": getattr(skill, 'skill', None),
+                    "certification": getattr(skill, 'certification', None),
+                    "license": getattr(skill, 'license', None)
+                }
+            }
+            
+            teachers_data.append(teacher_data)
+        
+        return teachers_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch teacher details: {str(e)}")
 
@@ -247,7 +302,6 @@ def get_Teacher_user_profile(user_id: int, db: Session = Depends(get_db)):
         if teacher is None:
             raise HTTPException(status_code=404, detail="Teacher not found")
 
-        # Get the first related object or None if the relationship is empty
         contact_info = teacher.contact_information[0] if teacher.contact_information else None
         dependent = teacher.dependents[0] if teacher.dependents else None
         education = teacher.educations[0] if teacher.educations else None
@@ -305,13 +359,6 @@ def get_Teacher_user_profile(user_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch teacher details: {str(e)}")
 
-# @router.get("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
-# def get_Teacher_user_profile( user_id: int, db: Session = Depends(get_db)):
-#     teacher = get_teacher(db, user_id)
-#     if teacher is None:
-#         raise HTTPException(status_code=404, detail="Teacher not found")
-#     return teacher
-
 def increment_content_file_count(db: Session, teacher_id: int):
     teacher = db.query(Teacher).filter(Teacher.Teacher_id == teacher_id).first()
     if teacher:
@@ -341,12 +388,10 @@ async def update_teacher(
     current_user: LmsUsers = Depends(get_current_user)
 ):
     try:
-        # Check if the teacher exists
         existing_teacher = db.query(Teacher).filter(Teacher.Teacher_id == teacher_id).first()
         if not existing_teacher:
             raise HTTPException(status_code=404, detail="Teacher not found")
 
-        # Update teacher details
         if teacher_update_data.name is not None:
             existing_teacher.name = teacher_update_data.name
         if teacher_update_data.department is not None:
@@ -354,7 +399,6 @@ async def update_teacher(
 
         db.add(existing_teacher)
 
-        # Update teacher contact information
         existing_teacher_contact = db.query(TeacherContact).filter(TeacherContact.Teacher_id == teacher_id).first()
         if not existing_teacher_contact:
             existing_teacher_contact = TeacherContact(teacher_id=teacher_id)
@@ -374,7 +418,6 @@ async def update_teacher(
 
         db.add(existing_teacher_contact)
 
-        # Update dependent details
         existing_dependent = db.query(Dependents).filter(Dependents.Teacher_id == teacher_id).first()
         if not existing_dependent:
             raise HTTPException(status_code=404, detail="Dependent not found")
@@ -388,7 +431,6 @@ async def update_teacher(
 
         db.add(existing_dependent)
 
-        # Update education details
         existing_education = db.query(Education).filter(Education.Teacher_id == teacher_id).first()
         if not existing_education:
             raise HTTPException(status_code=404, detail="Education details not found")
@@ -408,7 +450,6 @@ async def update_teacher(
 
         db.add(existing_education)
 
-        # Update emergency contact details
         existing_emergency_contact = db.query(EmergencyContact).filter(EmergencyContact.Teacher_id == teacher_id).first()
         if not existing_emergency_contact:
             raise HTTPException(status_code=404, detail="Emergency contact details not found")
@@ -422,7 +463,6 @@ async def update_teacher(
 
         db.add(existing_emergency_contact)
 
-        # Update languages spoken
         existing_languages_spoken = db.query(LanguagesSpoken).filter(LanguagesSpoken.Teacher_id == teacher_id).first()
         if not existing_languages_spoken:
             raise HTTPException(status_code=404, detail="Languages spoken details not found")
@@ -432,7 +472,6 @@ async def update_teacher(
 
         db.add(existing_languages_spoken)
 
-        # Update skills
         existing_skill = db.query(Skill).filter(Skill.Teacher_id == teacher_id).first()
         if not existing_skill:
             raise HTTPException(status_code=404, detail="Skills details not found")
@@ -449,7 +488,6 @@ async def update_teacher(
         db.commit()
         db.refresh(existing_teacher)
 
-        # Prepare response data
         response_data = {
             "teacher_id": existing_teacher.Teacher_id,
             "user_id":existing_teacher.user_id,
@@ -500,12 +538,10 @@ async def update_teacher(
 @router.delete("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_teacher(user_id: int, db: Session = Depends(get_db)):
     try:
-        # Check if the teacher exists
         existing_teacher = db.query(Teacher).filter(Teacher.user_id == user_id).first()
         if not existing_teacher:
             raise HTTPException(status_code=404, detail="Teacher not found")
 
-        # Delete associated data from other tables
         db.query(Employee).filter(Employee.Teacher_id == existing_teacher.Teacher_id).delete()
         db.query(TeacherContact).filter(TeacherContact.Teacher_id == existing_teacher.Teacher_id).delete()
         db.query(Education).filter(Education.Teacher_id == existing_teacher.Teacher_id).delete()
@@ -514,14 +550,12 @@ async def delete_teacher(user_id: int, db: Session = Depends(get_db)):
         db.query(LanguagesSpoken).filter(LanguagesSpoken.Teacher_id == existing_teacher.Teacher_id).delete()
         db.query(Skill).filter(Skill.Teacher_id == existing_teacher.Teacher_id).delete()
 
-        # Delete the teacher
         db.delete(existing_teacher)
         db.commit()
         lms_user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id).first()
         if not lms_user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Modify user_type and is_formsubmited attributes
         lms_user.user_type = 'teacher'
         lms_user.is_formsubmited = False
         db.commit()

@@ -20,12 +20,8 @@ class Course_content(Base):
     subject = relationship("Subject", back_populates="course_contents")
     standard = relationship("Standard", back_populates="courses_content")
     module = relationship("Module", back_populates="courses_content")
-    
-
     course_details = relationship("CourseDetails", back_populates="course_contents")
     lessons = relationship("Lesson", back_populates="course_contents")
     content = relationship('Content', back_populates='course_contents')
-
     teacher_by = relationship("TeacherCourse", back_populates="course_Assign")
-
     attendances = relationship("Attendance", back_populates="course_content")

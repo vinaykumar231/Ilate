@@ -7,7 +7,6 @@ from ..schemas import UserTypeCreate, UserTypeUpdate
 
 router = APIRouter()
 
-# Get all user types
 @router.get("/usertypes/", response_model=None)
 async def read_usertypes(db: Session = Depends(get_db)):
     try:
@@ -15,7 +14,6 @@ async def read_usertypes(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=404, detail="user type not found")
 
-# Get a specific user type by ID
 @router.get("/usertypes/{usertype_id}", response_model=None)
 async def read_usertype(usertype_id: int, db: Session = Depends(get_db)):
     try:
@@ -25,8 +23,7 @@ async def read_usertype(usertype_id: int, db: Session = Depends(get_db)):
         return usertype
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch usertype: {str(e)}")
-
-# Create a new user type 
+ 
 @router.post("/usertypes/", response_model=None)
 async def create_usertype(usertype_data: UserTypeCreate, db: Session = Depends(get_db)):
     try:
@@ -38,7 +35,6 @@ async def create_usertype(usertype_data: UserTypeCreate, db: Session = Depends(g
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create usertype: {str(e)}")
 
-# Update a user type by ID
 @router.put("/usertypes/{usertype_id}", response_model=None)
 async def update_usertype(usertype_id: int, usertype_data: UserTypeUpdate, db: Session = Depends(get_db)):
     try:
@@ -53,7 +49,6 @@ async def update_usertype(usertype_id: int, usertype_data: UserTypeUpdate, db: S
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update usertype: {str(e)}")
 
-# Delete a user type by ID
 @router.delete("/usertypes/{usertype_id}", response_model=None)
 async def delete_usertype(usertype_id: int, db: Session = Depends(get_db)):
     try:

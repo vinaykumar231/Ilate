@@ -217,28 +217,6 @@ class LmsUsers(Base):
 
     ###################################################################################################################
 
-    # @staticmethod
-    # def change_password(current_password: str, new_password: str, user_id: int, db: SessionLocal):
-    #     try:
-    #         user = db.query(LmsUsers).filter(LmsUsers.user_id == user_id,
-    #                                          LmsUsers.is_deleted == False).first()
-    #         if not user:
-    #             return HTTPException(status_code=404, detail=f"Record with email {user_id} not found")
-    #
-    #         if not bcrypt.checkpw(current_password.encode('utf-8'), user.user_password.encode('utf-8')):
-    #             return {"message": "Wrong password"}
-    #         else:
-    #             hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
-    #             user.user_password = hashed_new_password
-    #             db.commit()
-    #
-    #         response = api_response(200, message="Password changed successfully")
-    #         return response
-    #
-    #     except Exception as e:
-    #         return HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-    #Nikunj
     @staticmethod
     def change_password(current_password: str, new_password: str, user_id: int, is_admin: bool, db: SessionLocal):
         try:

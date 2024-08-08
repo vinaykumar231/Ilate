@@ -20,17 +20,13 @@ class CourseDetails(Base):
     course_content_id = Column(Integer, ForeignKey("courses_content.id"))
     is_active_course = Column(Boolean, server_default='0', nullable=False)
 
-    # Define relationships
+
     student = relationship("Student", back_populates="course_details")
     subject = relationship("Subject", back_populates="course_details")
     standard = relationship("Standard", back_populates="course_details")
     module = relationship("Module", back_populates="course_details")
     course = relationship("Course", back_populates="course_details")
-
     lessons = relationship("Lesson", back_populates="course_detail")
-
-    #content = relationship('Content', back_populates='course_detail')
-
     course_contents = relationship("Course_content", back_populates="course_details")
 
 

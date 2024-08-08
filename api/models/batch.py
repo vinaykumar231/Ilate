@@ -9,5 +9,4 @@ class Batch(Base):
     id = Column(Integer, primary_key=True, index=True)
     size= Column(String(223), nullable=False, unique=True)
 
-    #fees = relationship("Fee", back_populates="batch")
     payments = relationship("Payment", back_populates="batch")

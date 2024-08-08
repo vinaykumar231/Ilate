@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from db.base import Base
 from sqlalchemy.orm import relationship
 
-
 class Parent(Base):
     __tablename__ = 'parent_information'
 
@@ -12,8 +11,6 @@ class Parent(Base):
     p_first_name = Column(String(255))
     p_middle_name = Column(String(255))
     p_last_name = Column(String(255))
-    #p_user_id = Column(String(255))
-    #p_password =Column(String(255))
     user_type = Column(String(100))
     guardian = Column(String(255))
     primary_no = Column(String(255))

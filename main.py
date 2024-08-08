@@ -10,10 +10,6 @@ from api.endpoints import (companies_router, branches_router, usertypes_router, 
                            teacher_course_router,course_active, google_map_router, attendances_router, discount_assement_router, lesson_test_router
 )
 
-
-#Teacher data Api Router
-#from Teacher_data.Employee.api import (contact_info_router, education_router, skills_router, languages_spoken_router, emergency_contacts_router,
-                                       #dependents_router, employees_router, managers_router)
 ##################################################################################
                 # for swagger security
 #################################################################################
@@ -49,8 +45,8 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Your API Title",
-    openapi_url=None,  # We'll serve this manually
-    docs_url=None,  # We'll serve this manually
+    openapi_url=None,  
+    docs_url=None,  
     redoc_url=None,
 )
 
@@ -224,24 +220,15 @@ app.include_router(companies_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(branches_router, prefix="/api")
 app.include_router(google_map_router, prefix="/api")
-#app.include_router(swagger_router)
-# app.include_router(usertypes_router, prefix="/api")
-# app.include_router(students_router, prefix="/api")
-# app.include_router(designations_router, prefix="/api")
 app.include_router(courses_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(standards_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(subjects_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(modules_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(lessons_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(content_router, prefix="/api", tags=["Admin Routes"])
-#app.include_router(tests_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(batches_router, prefix="/api", tags=["Admin Routes"])
-
-# app.include_router(questions_router, prefix="/api", tags=["Admin Routes"])
-# app.include_router(question_papers_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(announcement_router, prefix="/api", tags=["Admin Routes"])
 app.include_router(teacher_course_router, prefix="/api", tags=["Admin Routes"])
-
 app.include_router(demo_router, prefix="/api", tags=["Student Routes"])
 app.include_router(demovideos_router, prefix="/api", tags=["Student Routes"])
 app.include_router(inquiry_router, prefix="/api", tags=["Student Routes"])
@@ -253,22 +240,6 @@ app.include_router(course_active, prefix="/api", tags=["Student Routes"])
 app.include_router(attendances_router, prefix="/api", tags=["Student Routes"])
 app.include_router(discount_assement_router, prefix="/api", tags=["Discount Routes"])
 app.include_router(lesson_test_router, prefix="/api", tags=["lesson test Routes"])
-#app.include_router(inquiry_router, prefix="/api", tags=["Student Routes"])
-#app.include_router(fees_router, prefix="/api")
-
-#app.include_router(teachers_router, prefix="/api")
-#app.include_router(students_router, prefix="/api", tags=["Student Routes"])
-# app.include_router(payment_router, prefix="/api")
-
-#Teacher all data
-# app.include_router(contact_info_router, prefix="/api", tags=["Teacher_Employee Routes"])
-# app.include_router(education_router, prefix="/api", tags=["Teacher_Employee Routes"])
-# app.include_router(skills_router, prefix="/api", tags=["Teacher_Employee Routes"])
-# app.include_router(languages_spoken_router, prefix="/api", tags=["Teacher_Employee Routes"])
-# app.include_router(emergency_contacts_router, prefix="/api", tags=["Teacher_Employee Routes"])
-# app.include_router( dependents_router, prefix="/api", tags=["Teacher_Employee Routes"])
-# app.include_router(employees_router, prefix="/api", tags=["Teacher_Employee Routes"])
-# app.include_router(managers_router, prefix="/api", tags=["Teacher_Employee Routes"])
 app.include_router( parents_router, prefix="/api", tags=["parent_&_Admin Routes"])
 app.include_router(teachers_Data_router, prefix="/api", tags=["Teacher_&_Admin Routes"])
 app.include_router(admission_router, prefix="/api", tags=["Student_&_Admin Routes"])
@@ -281,7 +252,6 @@ app.include_router(admission_router, prefix="/api", tags=["Student_&_Admin Route
 SECRET_KEY = "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"
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-# Initialize OAuth configuration
 oauth = OAuth()
 oauth.register(
     name='google',
@@ -291,36 +261,30 @@ oauth.register(
     client_kwargs={'scope': 'openid profile email'}
 )
 
-# Google login endpoint
 @app.get("/login11")
 async def google_login(request: Request):
     redirect_uri = request.url_for('auth')
     logging.info(f"Redirect URI for Google login: {redirect_uri}")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
-# Google callback endpoint
 logging.basicConfig(level=logging.INFO)
 
 @app.get("/auth")
 async def auth(request: Request, db: Session = Depends(get_db)):
     try:
-        # Retrieve the token and user information
         token = await oauth.google.authorize_access_token(request)
         logging.info(f"Token retrieved: {token}")
         print("Token:", token)
         
-        # Check if the id_token is present
         if 'id_token' not in token:
             print("ID token not found in the token response:", token)
             logging.error("ID token not found in the token response")
             raise HTTPException(status_code=400, detail="ID token not found in the token response")
         
-        # Parse the ID token to get user information
         user_info = await oauth.google.parse_id_token(request, token)
         logging.info(f"User information: {user_info}")
         print("User Information:", user_info)
 
-        # Handle authenticated user data here
         db_user = db.query(LmsUsers).filter(LmsUsers.user_email == user_info['email']).first()
         if not db_user:
             db_user = LmsUsers(
@@ -329,10 +293,9 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             )
             db.add(db_user)
             db.commit()
-            db.refresh(db_user)  # Refresh instance to get the updated fields
+            db.refresh(db_user)  
             logging.info(f"New user created: {db_user}")
 
-        # After handling user data, redirect to a success page or home page
         return RedirectResponse(url="/")
     except Exception as e:
         logging.error(f"Authentication failed: {e}")
