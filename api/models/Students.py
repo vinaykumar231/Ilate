@@ -20,7 +20,8 @@ class Student(Base):
     nationality = Column(String(255))
     referral = Column(String(255))
     id_proof = Column(String(255))
-    Address_proof = Column(String(255))  
+    Address_proof = Column(String(255)) 
+    profile_photo=Column(String(255)) 
     date_of_joining = Column(Date)
     date_of_completion = Column(Date, nullable=True)
     

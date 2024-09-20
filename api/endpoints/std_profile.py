@@ -22,6 +22,8 @@ import bcrypt
 from pydantic import EmailStr, BaseModel
 from ..models.courses_content import Course_content
 from dotenv import load_dotenv
+import re
+from sqlalchemy.orm import aliased
 
 
 load_dotenv()
@@ -189,6 +191,17 @@ def save_upload_file(upload_file: Optional[UploadFile]) -> Optional[str]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
 
+def validate_phone_number(number, field_name):
+    if number is None:
+        raise HTTPException(status_code=400, detail=f"{field_name} is required.")
+    if len(number) != 10 or not number.isdigit():
+        raise HTTPException(status_code=400, detail=f"{field_name} must be 10-digit number.")
+    
+def validate_emails(*emails):
+    for email in emails:
+        if email and not LmsUsers.validate_email(email):
+            raise HTTPException(status_code=400, detail=f"Invalid email format: {email}")
+    
 #############################################################################################################
 
 @router.post("/admission/", response_model=None)
@@ -224,8 +237,9 @@ async def fill_admission_form(
     standard: int = Form(...),
     module: int = Form(...),
     course: int = Form(...),
-    id_proof: UploadFile = File(default=None),
+    id_proof: UploadFile = File(...),
     address_proof: UploadFile = File(default=None),
+    profile_photo: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: LmsUsers = Depends(get_current_user)
 ):
@@ -235,7 +249,25 @@ async def fill_admission_form(
     
     id_proof_path = save_upload_file(id_proof)
     address_proof_path = save_upload_file(address_proof)
+    profile_photo_url = save_upload_file(profile_photo)
 
+    validate_phone_number(s_primary_no, "Student's primary contact number")
+    #validate_phone_number(s_secondary_no, "Student's secondary contact number")
+    validate_phone_number(p_primary_no, "Parent's primary contact number")
+    validate_emails(s_primary_email, s_secondary_email, p_primary_email)
+
+    if not id_proof:
+        raise HTTPException(status_code=400, detail="ID proof is required")
+    
+    if not profile_photo:
+        raise HTTPException(status_code=400, detail="profile photo is required")
+    
+    if s_primary_email == p_primary_email:
+        raise HTTPException(status_code=400, detail="Student's primary Email and Parent's primary Email cannot be the same.")
+    
+    parent_db = db.query(LmsUsers).filter(LmsUsers.user_email == p_primary_email).first()
+    if parent_db:
+            raise HTTPException(status_code=400, detail="Parent email already exists and must be unique.")
     try:
         parent_user_id = p_primary_email
         parent_password = p_first_name + "@123"
@@ -253,10 +285,11 @@ async def fill_admission_form(
             date_of_joining=date_of_joining,
             date_of_completion=date_of_completion,
             id_proof=id_proof_path,
-            Address_proof=address_proof_path
+            Address_proof=address_proof_path,
+            profile_photo=profile_photo_url,
         )
         db.add(db_student)
-        db.commit()
+        db.flush()
         db.refresh(db_student)
         
         db_contact_info = ContactInformation(
@@ -290,7 +323,7 @@ async def fill_admission_form(
         ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
         db_lmsuser.created_on = ist_now
         db.add(db_lmsuser)
-        db.commit()
+        db.flush()
         db.refresh(db_lmsuser)
 
         db_parent_info = Parent(
@@ -305,30 +338,36 @@ async def fill_admission_form(
         )
         db.add(db_parent_info)
 
-        
-        admin_course = db.query(Course_content).filter(
-            Course_content.course_id == course,
-            Course_content.standard_id == standard,
-            Course_content.subject_id == subject,
-            Course_content.module_id == module,
-            Course_content.is_active == True
-            ).first()
+        CourseContentAlias = aliased(Course_content)
+
+        query = db.query(CourseContentAlias).filter(
+            CourseContentAlias.is_active == True
+        )
+        if course is not None:
+            query = query.filter(CourseContentAlias.course_id == course)
+        if standard is not None:
+            query = query.filter(CourseContentAlias.standard_id == standard)
+        if subject is not None:
+            query = query.filter(CourseContentAlias.subject_id == subject)
+        if module is not None:
+            query = query.filter(CourseContentAlias.module_id == module)
+
+        admin_course = query.first()
+
         if not admin_course:
-            raise HTTPException(status_code=404, detail="Selected course not found or not active. Please choose a valid course.")
-        
+            raise HTTPException(status_code=400, detail="Selected course not found or not active. Please choose a valid course.")
+
         db_course_details = CourseDetails(
             subjects=subject,
             standards=standard,
             modules=module,
             courses=course,
             students=db_student.id,
-            user_id = current_user.user_id, 
+            user_id=current_user.user_id, 
             course_content_id=admin_course.id
         )
-        
         db.add(db_course_details)
 
-        db.commit()
         current_user.user_type = 'student'
         current_user.is_formsubmited = True
         db.add(current_user)
@@ -354,9 +393,9 @@ async def fill_admission_form(
         )
         return {"message": "Admission form has been submitted successfully"}
 
-    except Exception :
+    except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to submit admission form")
+        raise HTTPException(status_code=404, detail=f"{e}")
 
 base_url_path = os.getenv("BASE_URL_PATH")
 
@@ -371,6 +410,7 @@ def get_all_admissions(db: Session = Depends(get_db)):
         for student in students:
             id_proof_url = f"{base_url_path}/{student.id_proof}" if student.id_proof else None
             address_proof_url = f"{base_url_path}/{student.Address_proof}" if student.Address_proof else None
+            profile_photot_url = f"{base_url_path}/{student.profile_photo}" if student.profile_photo else None
 
             def convert_to_names(ids: Union[int, List[int]], get_name_func):
                 if isinstance(ids, int):
@@ -392,6 +432,7 @@ def get_all_admissions(db: Session = Depends(get_db)):
                 "date_of_completion": student.date_of_completion,
                 "id_proof_url": id_proof_url,
                 "address_proof_url": address_proof_url,
+                "profile_photo":profile_photot_url,
                 "contact_info": {
                     "primary_no": student.contact_info.primary_no,
                     "secondary_no": student.contact_info.secondary_no,
@@ -438,6 +479,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
 
         id_proof_url = f"{base_url_path}/{student.id_proof}" if student.id_proof else None
         address_proof_url = f"{base_url_path}/{student.Address_proof}" if student.Address_proof else None
+        profile_photot_url = f"{base_url_path}/{student.profile_photo}" if student.profile_photo else None
 
         def convert_to_names(ids: Union[int, List[int]], get_name_func):
             if isinstance(ids, int):
@@ -460,6 +502,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
             "date_of_completion": student.date_of_completion,
             "id_proof_url": id_proof_url,
             "address_proof_url": address_proof_url,
+            "profile_photo":profile_photot_url,
             "contact_info": {
                 "primary_no": student.contact_info.primary_no,
                 "secondary_no": student.contact_info.secondary_no,

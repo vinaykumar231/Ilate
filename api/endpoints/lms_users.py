@@ -203,35 +203,24 @@ async def send_otp(email: str, db: Session = Depends(get_db)):
     return {"message": "OTP sent successfully"}
 
 @router.put("/reset_password")
-async def reset_password(email: str, otp: int, new_password: str, confirm_new_password: str, db: Session = Depends(get_db)):
+async def forgot_password(email: str, new_password: str, confirm_new_password: str, db: Session = Depends(get_db)):
     try:
-        user = db.query(LmsUsers).filter(LmsUsers.user_email == email).first()
-        if not user:
-            raise HTTPException(status_code=404, detail=f"User with email {email} not found")
-
-        if user.reset_otp != otp:
-            raise HTTPException(status_code=400, detail="Invalid OTP")
-
-        ist_tz = pytz.timezone('Asia/Kolkata')
-        current_time = datetime.now(ist_tz)
-        
-        otp_generated_at = user.otp_generated_at.replace(tzinfo=pytz.UTC).astimezone(ist_tz)
-        
-        otp_age = current_time - otp_generated_at
-        if otp_age > timedelta(minutes=10):
-            raise HTTPException(status_code=400, detail="OTP has expired")
-
         if new_password != confirm_new_password:
             raise HTTPException(status_code=400, detail="Passwords do not match")
 
+        user = db.query(LmsUsers).filter(LmsUsers.user_email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User with email {email} not found")
+        
+        if not validate_password(new_password):
+            raise HTTPException(status_code=400, detail="Invalid new password")
+
         hashed_new_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
         user.user_password = hashed_new_password
-        
-        user.reset_otp = None
-        user.otp_generated_at = None
 
         db.commit()
 
+        # Send email for password reset
         contact = "900-417-3181"
         email_contact = "vinay@example.com"
 
@@ -247,7 +236,7 @@ async def reset_password(email: str, otp: int, new_password: str, confirm_new_pa
         <p>900417181</p>
         """
         await send_email(
-            subject="Password Reset Confirmation",
+            subject="Password Reset Request",
             email_to=email,
             body=reset_email_body
         )
@@ -256,5 +245,6 @@ async def reset_password(email: str, otp: int, new_password: str, confirm_new_pa
 
     except HTTPException as e:
         raise e
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

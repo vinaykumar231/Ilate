@@ -7,7 +7,7 @@ class Mail(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255))
-    message = Column(String(255))
+    message = Column(String(1024))
     name = Column(String(255))
     phone = Column(String(20))
     subject = Column(String(255))

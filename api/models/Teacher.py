@@ -9,6 +9,7 @@ class Teacher(Base):
     Teacher_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.user_id'))
     name = Column(String(255))
+    profile_photo=Column(String(255))
     email = Column(String(255), unique=True)
     department = (String(255))
     

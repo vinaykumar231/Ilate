@@ -80,7 +80,9 @@ def get_attendance(
     db: Session = Depends(get_db)
 ):
     student_ids_list = student_ids.split(',')
-    attendance_records = db.query(Attendance).filter(Attendance.student_id.in_(student_ids_list)).all()
+    all_records = db.query(Attendance).all()
+    attendance_records = [record for record in all_records if record.student_id in student_ids_list]
+
     if not attendance_records:
         raise HTTPException(status_code=404, detail="No attendance records found for the provided student IDs")
     return attendance_records
@@ -89,6 +91,42 @@ def get_attendance(
 def get_all_students(db: Session = Depends(get_db)):
     students = db.query(Student).all()
     return students
+
+# @router.get("/attendance_students/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
+# def get_all_students(
+#     course_id: int,
+#     current_user: LmsUsers = Depends(get_current_user), 
+#     db: Session = Depends(get_db)
+# ):
+#     students = []  # Initialize students as an empty list
+
+#     if current_user.user_type == "teacher":
+#         # Query the courses assigned to the teacher based on their user_id
+#         assigned_courses = db.query(TeacherCourse).filter(
+#             TeacherCourse.user_id == current_user.user_id,  # Use the teacher's user_id
+#             TeacherCourse.is_assign_course == True
+#         ).all()
+
+#         # Debug print: Print teacher_id and course_id for each assigned course
+#         for course in assigned_courses:
+#             print(f"Teacher ID: {course.teacher_id}, Course ID: {course.course_id}")
+
+#         if not assigned_courses:
+#             raise HTTPException(status_code=404, detail="No courses assigned to this teacher")
+
+#         # Extract the course_content_ids that the teacher is responsible for
+#         course_content_ids = [course.course_id for course in assigned_courses]
+
+#         # Match the students whose course details have these course_content_ids
+#         students = db.query(Student).join(CourseDetails, Student.id == CourseDetails.students).filter(
+#             CourseDetails.course_content_id == course_id,
+#             CourseDetails.is_active_course == True  # Ensure the course is active
+#         ).all()
+
+#         if not students:
+#             raise HTTPException(status_code=404, detail="No students found for the teacher's courses")
+
+#     return students
 
 @router.put("/attendance/{student_id}", response_model=AttendanceResponse)
 def update_attendance(student_id: int, status: AttendanceStatus, db: Session = Depends(get_db)):

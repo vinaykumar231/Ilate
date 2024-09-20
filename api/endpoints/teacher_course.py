@@ -16,32 +16,61 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
-@router.post("/teachers/{teacher_id}/assign_courses")
-def assign_courses_to_teacher(teacher_id: int, course_ids: list[int], db: Session = Depends(get_db)):
-    teacher = db.query(Teacher).filter(Teacher.Teacher_id == teacher_id).first()
+class AssignCoursesRequest(BaseModel):
+    teacher_id: int
+    course_id: int
+    course_content_id: List[int]  
+
+    class Config:
+        from_attributes = True 
+    
+
+@router.post("/teachers/assign_courses")
+def assign_courses_to_teacher(request: AssignCoursesRequest,db: Session = Depends(get_db)):
+    
+    teacher = db.query(Teacher).filter(Teacher.Teacher_id == request.teacher_id).first()
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
 
-    courses = db.query(Course_content).filter(Course_content.id.in_(course_ids)).all()
-    if not courses:
-        raise HTTPException(status_code=404, detail="One or more courses not found")
+    course = db.query(Course).filter(Course.id == request.course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
 
-    for course in courses:
-        teacher_course = TeacherCourse(
-            teacher_id=teacher.Teacher_id,
-            course_id=course.id,
-            user_id=teacher.user_id,  
-            is_assign_course=True
-        )
-        db.add(teacher_course)
+    # Check if all course contents exist
+    course_contents = db.query(Course_content).filter(Course_content.id.in_(request.course_content_id)).all()
+    if len(course_contents) != len(request.course_content_id):
+        raise HTTPException(status_code=404, detail="One or more course contents not found")
 
+    assigned_courses = []
     try:
+        for course_content in course_contents:
+            teacher_course = TeacherCourse(
+                teacher_id=teacher.Teacher_id,
+                course_id=request.course_id,
+                course_content_id=course_content.id,
+                user_id=teacher.user_id,  
+                is_assign_course=True
+            )
+            db.add(teacher_course)
+            assigned_courses.append({
+                "course_id": request.course_id,
+                "course_name":course_content.course.name,
+                "course_content_id": course_content.id,
+                "course_content_standard_name": course_content.standard.name,
+                "course_content_subject_name": course_content.subject.name,
+                "course_content_module_name": course_content.module.name,
+            })
         db.commit()
-    except Exception as e:
+    except:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to assign courses to teacher")
+        raise HTTPException(status_code=500, detail=f"Failed to assign courses to teacher:")
 
-    return {"message": "Courses assigned successfully"}
+    return {
+        "message": "Courses assigned successfully",
+        "teacher_id": teacher.Teacher_id,
+        "teacher_name": teacher.name,
+        "assigned_courses": assigned_courses
+    }
 
 class CourseResponse(BaseModel):
     id: int

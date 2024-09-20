@@ -97,12 +97,13 @@ class LessonResponse(BaseModel):
 @router.post("/content/with_lesson", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def create_lesson_and_content(
     course_content_id: int = Form(...),
-    lesson_title: str = Form(...),
-    content_descriptions: str = Form(...),
-    files: List[UploadFile] = File(...),
+    lesson_title: str = Form(None),
+    content_descriptions: str = Form(None),
+    files: List[UploadFile] = File(None),
     current_user: LmsUsers = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    
     teacher = db.query(Teacher).filter(Teacher.user_id == current_user.user_id).first()
     if not teacher:
         raise HTTPException(status_code=400, detail="Current user is not a teacher")
@@ -120,6 +121,13 @@ async def create_lesson_and_content(
 
     if not course_content:
         raise HTTPException(status_code=404, detail="No assigned course content found for the given ID")
+    
+    if not lesson_title:
+         raise HTTPException(status_code=400, detail="Please provide lesson name")
+    if not content_descriptions:
+         raise HTTPException(status_code=400, detail="Please provide content descriptions")
+    if not files:
+         raise HTTPException(status_code=400, detail="Please upload at least one content")
 
     new_lesson = Lesson(
         title=lesson_title,

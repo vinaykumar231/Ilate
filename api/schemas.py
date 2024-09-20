@@ -676,7 +676,7 @@ class Education(EducationBase):
 class SkillBase(BaseModel):
     skill: str
     certification: str
-    license: str
+    license: Optional[str] = None
 
 class SkillCreate(SkillBase):
     pass
@@ -704,8 +704,8 @@ class LanguagesSpoken(LanguagesSpokenBase):
 ######################### teacher EmergencyContact #####################################
 
 class EmergencyContactBase(BaseModel):
-    emergency_contact_name: str
-    relation: str
+    emergency_contact_name:Optional[str] = None
+    relation: Optional[str] = None
     emergency_contact_number: int
 
 class EmergencyContactCreate(EmergencyContactBase):
@@ -721,7 +721,8 @@ class EmergencyContact(EmergencyContactBase):
 class DependentsBase(BaseModel):
     dependent_name: str
     realtion: str
-    date_of_birth: date
+    date_of_birth: Optional[date]=None
+   
 
 class DependentsCreate(DependentsBase):
     pass
@@ -732,16 +733,16 @@ class DependentsUpdate(DependentsBase):
 
 ######################### Employee Master Table #####################################
 class EmployeeBase(BaseModel):
-    f_name: str
-    m_name: Optional[str]
-    l_name: str
+    f_name: Optional[str] = None
+    m_name: Optional[str] = None
+    l_name: Optional[str] = None
     dob: date
     gender: str
     nationality: str
     marital_status: str
-    citizenship_status: str
+    citizenship_status: Optional[str] = None
     date_of_hire: Optional[date]
-    date_of_termination: Optional[date]
+    date_of_termination: Optional[date]=None
    
 
 class EmployeeCreate(EmployeeBase):
@@ -773,8 +774,8 @@ class ManagerInDBBase(ManagerBase):
 # Pydantic schema for Teacher
 class TeacherCreate(BaseModel):
     name: str
-    email: str
-    department: str
+    email: Optional[str] = None
+    department: Optional[str] = None
 
 # Pydantic schema for Teacher response
 class TeacherResponse(BaseModel):

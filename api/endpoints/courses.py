@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 from sqlalchemy import distinct
 from sqlalchemy.orm import joinedload
 from datetime import datetime
+from ..models.teacher_course import TeacherCourse
 
 
 load_dotenv()
@@ -36,84 +37,96 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
     modules_created = 0
     course_contents_created = 0
     course_contents_updated = 0
+    
     try:
+        # Check if the course already exists
         existing_course = db.query(Course).filter(Course.name == course_data.course_name).first()
 
         if existing_course:
             course = existing_course
-            print(f"Using existing course: {course.name} (ID: {course.id})")
         else:
             course = Course(name=course_data.course_name, description=course_data.description)
             db.add(course)
-            db.flush()
-            course_created += 1  
+            db.flush()  # Ensures that the course ID is available
+            course_created += 1
 
+        # Process standards
         for standard_data in course_data.standards:
-            existing_standard = db.query(Standard).filter(
-                Standard.name == standard_data.standard_name,
-                Standard.course_id == course.id
-            ).first()
-
-            if existing_standard:
-                standard = existing_standard
-            else:
-                standard = Standard(name=standard_data.standard_name, course_id=course.id)
-                db.add(standard)
-                db.flush()
-                standards_created += 1
-
-            for subject_data in standard_data.subjects:
-                existing_subject = db.query(Subject).filter(
-                    Subject.name == subject_data.subject_name,
-                    Subject.standard_id == standard.id
+            standard_names = [name.strip() for name in standard_data.standard_name.split(',')]
+            for standard_name in standard_names:
+                existing_standard = db.query(Standard).filter(
+                    Standard.name == standard_name,
+                    Standard.course_id == course.id
                 ).first()
 
-                if existing_subject:
-                    subject = existing_subject
+                if existing_standard:
+                    standard = existing_standard
                 else:
-                    subject = Subject(name=subject_data.subject_name, standard_id=standard.id)
-                    db.add(subject)
-                    db.flush()
-                    subjects_created += 1
+                    standard = Standard(name=standard_name, course_id=course.id)
+                    db.add(standard)
+                    db.flush()  # Ensures that the standard ID is available
+                    standards_created += 1
 
-                for module_data in subject_data.modules:
-                    existing_module = db.query(Module).filter(
-                        Module.name == module_data.module_name,
-                        Module.subject_id == subject.id
-                    ).first()
+                # Process subjects
+                for subject_data in standard_data.subjects:
+                    subject_names = [name.strip() for name in subject_data.subject_name.split(',')]
+                    for subject_name in subject_names:
+                        existing_subject = db.query(Subject).filter(
+                            Subject.name == subject_name,
+                            Subject.standard_id == standard.id
+                        ).first()
 
-                    if existing_module:
-                        module = existing_module
-                    else:
-                        module = Module(name=module_data.module_name, subject_id=subject.id)
-                        db.add(module)
-                        db.flush()
-                        modules_created += 1
+                        if existing_subject:
+                            subject = existing_subject
+                        else:
+                            subject = Subject(name=subject_name, standard_id=standard.id)
+                            db.add(subject)
+                            db.flush()  # Ensures that the subject ID is available
+                            subjects_created += 1
 
-                    existing_content = db.query(Course_content).filter(
-                        Course_content.course_id == course.id,
-                        Course_content.standard_id == standard.id,
-                        Course_content.subject_id == subject.id,
-                        Course_content.module_id == module.id
-                    ).first()
+                        # Process modules
+                        for module_data in subject_data.modules:
+                            module_names = [name.strip() for name in module_data.module_name.split(',')]
+                            for module_name in module_names:
+                                existing_module = db.query(Module).filter(
+                                    Module.name == module_name,
+                                    Module.subject_id == subject.id
+                                ).first()
 
-                    if existing_content:
-                        existing_content.is_active = True
-                        course_contents_updated += 1
-                        
-                    else:
-                        new_content = Course_content(
-                            course_id=course.id,
-                            subject_id=subject.id,
-                            standard_id=standard.id,
-                            module_id=module.id,
-                            is_active=True
-                        )
-                        db.add(new_content)
-                        course_contents_created += 1
-                        
+                                if existing_module:
+                                    module = existing_module
+                                else:
+                                    module = Module(name=module_name, subject_id=subject.id)
+                                    db.add(module)
+                                    db.flush()  # Ensures that the module ID is available
+                                    modules_created += 1
 
-                    db.flush()
+                                # Manage Course_content
+                                existing_content = db.query(Course_content).filter(
+                                    Course_content.course_id == course.id,
+                                    Course_content.standard_id == standard.id,
+                                    Course_content.subject_id == subject.id,
+                                    Course_content.module_id == module.id
+                                ).first()
+
+                                if existing_content:
+                                    # If the content exists, update it if needed
+                                    if not existing_content.is_active:
+                                        existing_content.is_active = True
+                                        course_contents_updated += 1
+                                else:
+                                    # Create a new Course_content if it does not exist
+                                    new_content = Course_content(
+                                        course_id=course.id,
+                                        standard_id=standard.id,
+                                        subject_id=subject.id,
+                                        module_id=module.id,
+                                        is_active=True
+                                    )
+                                    db.add(new_content)
+                                    course_contents_created += 1
+
+                                db.flush()  # Ensure that changes are flushed to the database
 
         db.commit()
 
@@ -121,10 +134,6 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
             "message": "Course hierarchy created/updated successfully",
             "course_id": course.id,
             "course_name": course.name,
-            "standard_name": standard.name,
-            "subject_name": subject.name,
-            "module_name": module.name,
-            "courses_created": course_created,
             "standards_created": standards_created,
             "subjects_created": subjects_created,
             "modules_created": modules_created,
@@ -138,6 +147,43 @@ def create_course_with_hierarchy(course_data: CourseCreateWithHierarchy1, db: Se
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create/update course hierarchy: {str(e)}")
+    
+@router.get("/courses_all/", response_model=None)
+def get_courses(db: Session = Depends(get_db)):
+    courses = db.query(Course).all()
+    course_list = []
+    
+    for course in courses:
+        standards = db.query(Standard).filter(Standard.course_id == course.id).all()
+        standards_list = []
+        
+        for standard in standards:
+            subjects = db.query(Subject).filter(Subject.standard_id == standard.id).all()
+            subjects_list = []
+            
+            for subject in subjects:
+                modules = db.query(Module).filter(Module.subject_id == subject.id).all()
+                modules_list = [{"module_id": module.id,"module_name": module.name} for module in modules]
+                
+                subjects_list.append({
+                     "subject_id": subject.id,
+                    "subject_name": subject.name,
+                    "modules": modules_list
+                })
+            
+            standards_list.append({
+                "standard_id": standard.id,
+                "standard_name": standard.name,
+                "subjects": subjects_list
+            })
+        
+        course_list.append({
+             "course_id": course.id,
+            "course_name": course.name,
+            "standards": standards_list
+        })
+    
+    return {"course_list": course_list}
 
 ##################### only for create standard, subject, module ##########################################
 
@@ -252,6 +298,53 @@ class CourseResponse(BaseModel):
 
 @router.get("/course/{course_id}", response_model=CourseResponse)
 def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
+    # Fetch the course with its related standards, subjects, and modules
+    course = db.query(Course).options(
+        joinedload(Course.standards)
+        .joinedload(Standard.subject)  
+        .joinedload(Subject.modules)
+    ).filter(Course.id == course_id).first()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Fetch the course contents assigned to teachers for the given course ID
+    assigned_course_contents = (
+        db.query(Course_content)
+        .join(TeacherCourse)
+        .filter(TeacherCourse.course_id == course_id)
+        .filter(TeacherCourse.course_content_id == Course_content.id)
+        .all()
+    )
+    
+    # Create a mapping of course content for easy access
+    content_map = {(c.standard_id, c.subject_id, c.module_id): c for c in assigned_course_contents}
+    
+    related_course_details = []
+
+    for standard in course.standards:
+        for subject in standard.subject:  
+            for module in subject.modules:
+                content = content_map.get((standard.id, subject.id, module.id))
+                if content:
+                    related_course_details.append(RelatedCourseDetail(
+                        id=content.id,
+                        standard_name=standard.name,
+                        subject_name=subject.name,
+                        module_name=module.name
+                    ))
+    
+    course_response = CourseResponse(
+        id=course.id,
+        name=course.name,
+        description=course.description,
+        related_course_details=related_course_details
+    )
+    
+    return course_response
+
+@router.get("/course/admin/{course_id}", response_model=CourseResponse)
+def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
     course = db.query(Course).options(
         joinedload(Course.standards)
         .joinedload(Standard.subject)  
@@ -286,7 +379,6 @@ def get_course_hierarchy(course_id: int, db: Session = Depends(get_db)):
     )
     
     return course_response
-
 ################################# get hreachy from different course and course_content table ###########################################################
 
 @router.get("/course/{course_id}/content/{admin_course_id}", response_model=None)
@@ -558,7 +650,6 @@ def get_all_courses_hierarchy(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve all courses hierarchy: {str(e)}")
 
 
-
 @router.delete("/courses_delete/{course_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def delete_course_with_hierarchy(course_id: int, db: Session = Depends(get_db)):
     try:
@@ -615,12 +706,15 @@ def read_all_courses(db: Session = Depends(get_db)):
 @router.get("/courses/unique", response_model=None)
 def read_all_courses(db: Session = Depends(get_db)):
     try:
-        unique_course_names = db.query(Course.name).distinct().all()
-        unique_names = [name[0] for name in unique_course_names]
-        return {"unique_courses": unique_names}
+        # Query distinct courses by name, id, and description
+        unique_courses = db.query(Course.id, Course.name, Course.description).distinct(Course.name).all()
+
+        # Map each course into a dictionary with the required fields
+        courses_list = [{"id": course.id, "name": course.name} for course in unique_courses]
+
+        return courses_list
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch courses")
-
 
 @router.get("/courses/{course_id}", response_model=None)
 def read_course(course_id: int, db: Session = Depends(get_db)):

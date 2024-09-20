@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from db.session import get_db
 from fastapi import Header
@@ -11,6 +11,14 @@ from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_o
 from typing import Optional
 from pydantic import BaseModel
 from datetime import date
+from .std_profile import save_upload_file
+from dotenv import load_dotenv
+import re
+import os
+from .std_profile import validate_emails, validate_phone_number
+
+
+load_dotenv()
 
 router = APIRouter()
 
@@ -164,66 +172,163 @@ def update_skill(db: Session, Teacher_id: int, skill_update: SkillUpdate):
     db.refresh(db_skill)
     return db_skill
 
-
+base_url_path = os.getenv("BASE_URL_PATH")
 @router.post("/teachers/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
 async def fill_teacher_data(
-    teacher_data : TeacherCreate,
-    employee: EmployeeCreate,
-    teacher_contact_info: ContactInformationCreate,
-    dependent: DependentsCreate,
-    education: EducationCreate,
-    skill: SkillCreate,
-    emergency_contact: EmergencyContactCreate,
-    languages_spoken: LanguagesSpokenCreate,
+    name: str = Form(...),
+    email: str = Form(None),
+    department: str = Form(None),
+    profile_photo: UploadFile = File(None),
+    f_name:str= Form(None),
+    m_name: str = Form(None),
+    l_name: str = Form(None),
+    dob: date = Form(...),
+    gender: str = Form(...),
+    nationality: str = Form(...),
+    marital_status: str = Form(...),
+    citizenship_status: str = Form(None),
+    date_of_hire: date = Form(...),
+    date_of_termination: date = Form(None),
+    primary_number: str = Form(...),
+    secondary_number: str = Form(None),
+    primary_email_id: str = Form(...),
+    secondary_email_id: str = Form(None),
+    current_address: str = Form(...),
+    permanent_address: str = Form(...),
+    dependent_name: str = Form(...),
+    relation: str = Form(...),
+    date_of_birth: date = Form(None),
+    education_level: str = Form(...),
+    institution: str = Form(...),
+    specialization: str = Form(...),
+    field_of_study: str = Form(...),
+    year_of_passing: int = Form(...),
+    percentage: float = Form(...),
+    skill: str = Form(...),
+    certification: str = Form(...),
+    license: str = Form(None),
+    emergency_contact_name: str = Form(None),
+    emergency_contact_number: str = Form(...),
+    languages: str = Form(...),
     db: Session = Depends(get_db),
     current_user: LmsUsers = Depends(get_current_user)
 ):
+    # if len(emergency_contact_number) != 10 or not emergency_contact_number.isdigit():
+    #     raise HTTPException(status_code=400, detail="Emergency contact number must be 10-digit number.")
+    profile_photo_url = save_upload_file(profile_photo)
+
+    validate_phone_number(primary_number, "Primary contact number")
+    validate_phone_number(emergency_contact_number, "Emergency contact number")
+    validate_emails(primary_email_id)
+
     try:
         existing_form = db.query(Teacher).filter(Teacher.user_id == current_user.user_id).first()
         if existing_form:
             raise HTTPException(status_code=400, detail="Teacher data has already been submitted")
 
-        db_teacher = Teacher(**teacher_data.dict(),user_id=current_user.user_id)
-        db.add(db_teacher)
-        db.commit()
-        db.refresh(db_teacher)
+        teacher_data = Teacher(
+            user_id=current_user.user_id,
+            name=name,
+            email=email,
+            department=department,
+            profile_photo=profile_photo_url,
+        
+           
+        )
+        db.add(teacher_data)
+        db.flush()
+        db.refresh(teacher_data)
 
-        db_employee = Employee(**employee.dict(), Teacher_id=db_teacher.Teacher_id)
-        db.add(db_employee)
-        db.commit()
+        employee_data = Employee(
+            Teacher_id=teacher_data.Teacher_id,
+            f_name=f_name,
+            m_name=m_name,
+            l_name=l_name,
+            dob=dob,
+            gender=gender,
+            nationality=nationality,
+            marital_status=marital_status,
+            citizenship_status=citizenship_status,
+            date_of_hire=date_of_hire,
+            date_of_termination=date_of_termination,
+           
+        )
+        db.add(employee_data)
+        db.flush()
 
-        db_teacher_contact = TeacherContact(**teacher_contact_info.dict(), Teacher_id=db_teacher.Teacher_id)
-        db.add(db_teacher_contact)
-        db.commit()
+        teacher_contact_data = TeacherContact(
+            Teacher_id=teacher_data.Teacher_id,
+            primary_number=primary_number,
+            secondary_number=secondary_number,
+            primary_email_id=primary_email_id,
+            secondary_email_id=secondary_email_id,
+            current_address=current_address,
+            permanent_address=permanent_address,
+        )
+        db.add(teacher_contact_data)
+        db.flush()
 
-        db_dependents = Dependents(**dependent.dict(), Teacher_id=db_teacher.Teacher_id)
-        db.add(db_dependents)
-        db.commit()
+        dependent_data = Dependents(
+            Teacher_id=teacher_data.Teacher_id,
+            dependent_name=dependent_name,
+            realtion=relation,
+            date_of_birth=date_of_birth
+        )
+        db.add(dependent_data)
+        db.flush()
 
-        db_education = Education(**education.dict(), Teacher_id=db_teacher.Teacher_id)
-        db.add(db_education)
-        db.commit()
+        # Create and save Education entry
+        education_data = Education(
+            Teacher_id=teacher_data.Teacher_id,
+            education_level=education_level,
+            institution=institution,
+            specialization=specialization,
+            field_of_study=field_of_study,
+            year_of_passing=year_of_passing,
+            percentage=percentage
+        )
+        db.add(education_data)
+        db.flush()
 
-        db_skill = Skill(**skill.dict(), Teacher_id=db_teacher.Teacher_id)
-        db.add(db_skill)
-        db.commit()
+        # Create and save Skill entry
+        skill_data = Skill(
+            Teacher_id=teacher_data.Teacher_id,
+            skill=skill,
+            certification=certification,
+            license=license
+        )
+        db.add(skill_data)
+        db.flush()
 
-        db_emergency_contact = EmergencyContact(**emergency_contact.dict(), Teacher_id=db_teacher.Teacher_id)
-        db.add(db_emergency_contact)
-        db.commit()
+        # Create and save EmergencyContact entry
+        emergency_contact_data = EmergencyContact(
+            Teacher_id=teacher_data.Teacher_id,
+            emergency_contact_name=emergency_contact_name,
+            relation=relation,
+            emergency_contact_number=emergency_contact_number
+        )
+        db.add(emergency_contact_data)
+        db.flush()
 
-        db_languages_spoken = LanguagesSpoken(**languages_spoken.dict(), Teacher_id=db_teacher.Teacher_id)
-        db.add(db_languages_spoken)
-        db.commit()
+        # Create and save LanguagesSpoken entry
+        languages_spoken_data = LanguagesSpoken(
+            Teacher_id=teacher_data.Teacher_id,
+            languages=languages
+        )
+        db.add(languages_spoken_data)
+        db.flush()
 
         current_user.user_type = 'teacher'
         current_user.is_formsubmited = True
         db.add(current_user)
         db.commit()
 
-        return {"message": "Teacher all data has been submitted successfully"}
+
+        return {"message": "Teacher data has been submitted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create teacher details: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create teacher details{e}")
+
 
 
 @router.get("/teachers/get_all", response_model=None,dependencies=[Depends(JWTBearer()), Depends(get_admin)])
@@ -235,6 +340,7 @@ def get_all_teachers(db: Session = Depends(get_db)):
         
         teachers_data = []
         for teacher in teachers:
+            id_proof_url = f"{base_url_path}/{teacher.profile_photo}" if teacher.profile_photo else None
             contact_info = teacher.contact_information[0] if teacher.contact_information else None
             dependent = teacher.dependents[0] if teacher.dependents else None
             education = teacher.educations[0] if teacher.educations else None
@@ -247,6 +353,7 @@ def get_all_teachers(db: Session = Depends(get_db)):
                 "user_id": teacher.user_id,
                 "name": teacher.name,
                 "email": teacher.email,
+                "profile_photo": id_proof_url,
                 "contact_info": {
                     "primary_number": getattr(contact_info, 'primary_number', None),
                     "secondary_number": getattr(contact_info, 'secondary_number', None),
@@ -302,6 +409,7 @@ def get_Teacher_user_profile(user_id: int, db: Session = Depends(get_db)):
         if teacher is None:
             raise HTTPException(status_code=404, detail="Teacher not found")
 
+        emplyee_info = teacher.employee[0] if teacher.employee else None
         contact_info = teacher.contact_information[0] if teacher.contact_information else None
         dependent = teacher.dependents[0] if teacher.dependents else None
         education = teacher.educations[0] if teacher.educations else None
@@ -314,6 +422,14 @@ def get_Teacher_user_profile(user_id: int, db: Session = Depends(get_db)):
             "user_id": teacher.user_id,
             "name": teacher.name,
             "email": teacher.email,
+            "profile_photo": teacher.profile_photo,
+            "employee":{
+                "dob" :emplyee_info.dob if emplyee_info else None,
+                "gender":emplyee_info.gender if emplyee_info else None,
+                "nationality" :emplyee_info.nationality if emplyee_info else None,
+                "marital_status" :emplyee_info.marital_status if emplyee_info else None,
+                "date_of_hire" :emplyee_info.date_of_hire if emplyee_info else None,
+            },
             "contact_info": {
                 "primary_number": contact_info.primary_number if contact_info else None,
                 "secondary_number": contact_info.secondary_number if contact_info else None,

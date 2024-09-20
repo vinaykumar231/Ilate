@@ -43,12 +43,7 @@ from db.session import engine
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(
-    title="Your API Title",
-    openapi_url=None,  
-    docs_url=None,  
-    redoc_url=None,
-)
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -109,7 +104,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     return {"access_token": user["username"], "token_type": "bearer"}
 
-@app.get("/login", response_class=HTMLResponse)
+@app.get("/swagger", response_class=HTMLResponse)
 async def login_page():
     return """
     <!DOCTYPE html>
@@ -169,7 +164,7 @@ async def login_page():
     <body>
         <div class="login-container">
             <h2>Login</h2>
-            <form action="/login" method="post">
+            <form action="/swagger" method="post">
                 <input type="text" name="username" placeholder="Username" required>
                 <input type="password" name="password" placeholder="Password" required>
                 <input type="submit" value="Log In">
@@ -179,7 +174,7 @@ async def login_page():
     </html>
     """
 
-@app.post("/login")
+@app.post("/swagger")
 async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
@@ -201,7 +196,7 @@ async def get_open_api_endpoint(request: Request):
 async def get_documentation(request: Request):
     session_id = request.cookies.get("session_id")
     if not session_id or session_id not in SESSIONS:
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/swagger")
     current_user = User(**SESSIONS[session_id])
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
