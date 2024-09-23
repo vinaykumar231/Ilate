@@ -18,6 +18,9 @@ from ..models.teacher_course import TeacherCourse
 import json
 from pytz import timezone
 from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
+from typing import List
 
 router = APIRouter()
 
@@ -87,46 +90,104 @@ def get_attendance(
         raise HTTPException(status_code=404, detail="No attendance records found for the provided student IDs")
     return attendance_records
 
-@router.get("/attendance_students/", response_model=None)
-def get_all_students(db: Session = Depends(get_db)):
-    students = db.query(Student).all()
-    return students
-
-# @router.get("/attendance_students/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])
-# def get_all_students(
-#     course_id: int,
-#     current_user: LmsUsers = Depends(get_current_user), 
-#     db: Session = Depends(get_db)
-# ):
-#     students = []  # Initialize students as an empty list
-
-#     if current_user.user_type == "teacher":
-#         # Query the courses assigned to the teacher based on their user_id
-#         assigned_courses = db.query(TeacherCourse).filter(
-#             TeacherCourse.user_id == current_user.user_id,  # Use the teacher's user_id
-#             TeacherCourse.is_assign_course == True
-#         ).all()
-
-#         # Debug print: Print teacher_id and course_id for each assigned course
-#         for course in assigned_courses:
-#             print(f"Teacher ID: {course.teacher_id}, Course ID: {course.course_id}")
-
-#         if not assigned_courses:
-#             raise HTTPException(status_code=404, detail="No courses assigned to this teacher")
-
-#         # Extract the course_content_ids that the teacher is responsible for
-#         course_content_ids = [course.course_id for course in assigned_courses]
-
-#         # Match the students whose course details have these course_content_ids
-#         students = db.query(Student).join(CourseDetails, Student.id == CourseDetails.students).filter(
-#             CourseDetails.course_content_id == course_id,
-#             CourseDetails.is_active_course == True  # Ensure the course is active
-#         ).all()
-
-#         if not students:
-#             raise HTTPException(status_code=404, detail="No students found for the teacher's courses")
-
+# @router.get("/attendance_students/", response_model=None)
+# def get_all_students(db: Session = Depends(get_db)):
+#     students = db.query(Student).all()
 #     return students
+
+
+class StudentAttendance(BaseModel):
+    student_id: int
+    first_name: str
+    last_name: str
+    course_name: str  
+
+    class Config:
+        orm_mode = True
+
+@router.get("/attendance_students/", response_model=List[StudentAttendance])
+def get_attendance_students(current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Find the course_content_id for the teacher automatically
+    teacher_course_content_id_query = select(
+        TeacherCourse.course_content_id
+    ).filter(
+        TeacherCourse.user_id ==current_user.user_id
+    ).distinct()
+
+    teacher_course_content_ids = db.execute(teacher_course_content_id_query).scalars().all()
+
+    if not teacher_course_content_ids:
+        raise HTTPException(status_code=404, detail="No course content found for this teacher.")
+
+    # Fetch students with joined loading for CourseDetails, Course_content, and Course
+    result = db.query(Student).options(
+        joinedload(Student.course_details).joinedload(CourseDetails.course_contents).joinedload(Course_content.course)  # Use proper join paths
+    ).join(
+        CourseDetails, CourseDetails.students == Student.id
+    ).filter(
+        CourseDetails.course_content_id.in_(teacher_course_content_ids)
+    ).all()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="No matching students found")
+
+    # Return student info with the course name
+    return [
+        StudentAttendance(
+            student_id=student.id,
+            first_name=student.first_name,
+            last_name=student.last_name,
+            course_name=student.course_details.course_contents.course.name  # Access course name through relationships
+        )
+        for student in result
+    ]
+
+@router.get("/attendance_students/module_wise/", response_model=List[StudentAttendance])
+def get_attendance_students(course_id: int, admin_course_id: int, current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Get course content details
+    course_content = db.query(Course_content).filter(
+        Course_content.id == admin_course_id,
+        Course_content.course_id == course_id
+    ).first()
+
+    if not course_content:
+        raise HTTPException(status_code=404, detail="Course content not found")
+
+    # Find the course_content_id for the teacher automatically
+    teacher_course_content_id_query = select(
+        TeacherCourse.course_content_id
+    ).filter(
+        TeacherCourse.user_id == current_user.user_id
+    ).distinct()
+
+    teacher_course_content_ids = db.execute(teacher_course_content_id_query).scalars().all()
+
+    if not teacher_course_content_ids:
+        raise HTTPException(status_code=404, detail="No course content found for this teacher.")
+
+    # Fetch students with joined loading for CourseDetails, Course_content, and Course
+    result = db.query(Student).options(
+        joinedload(Student.course_details).joinedload(CourseDetails.course_contents).joinedload(Course_content.course)
+    ).join(
+        CourseDetails, CourseDetails.students == Student.id
+    ).filter(
+        CourseDetails.course_content_id.in_(teacher_course_content_ids),
+        CourseDetails.course_content_id == admin_course_id  # Filter by specific course content
+    ).all()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="No matching students found")
+
+    # Return student info with the course name
+    return [
+        StudentAttendance(
+            student_id=student.id,
+            first_name=student.first_name,
+            last_name=student.last_name,
+            course_name=student.course_details.course_contents.course.name  # Access course name through relationships
+        )
+        for student in result
+   ]  
 
 @router.put("/attendance/{student_id}", response_model=AttendanceResponse)
 def update_attendance(student_id: int, status: AttendanceStatus, db: Session = Depends(get_db)):
