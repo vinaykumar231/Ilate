@@ -30,7 +30,6 @@ base_url_path = os.getenv("BASE_URL_PATH")
 ############################ student get course only after admin payment verify ###############################
 
 def get_user_contents(db: Session, user_id: int):
-    # Modify the query to load related course, subject, standard, and module
     contents_query = db.query(Content).join(
         CourseDetails,
         and_(
@@ -48,9 +47,39 @@ def get_user_contents(db: Session, user_id: int):
 
     contents = contents_query.all()
 
+    # If no contents found, query course details to return those
     if not contents:
-        raise HTTPException(status_code=404, detail="No accessible content found for this user.")
+        courses_query = db.query(CourseDetails).filter(
+            CourseDetails.user_id == user_id,
+            CourseDetails.is_active_course == True
+        ).options(
+            joinedload(CourseDetails.course),
+            joinedload(CourseDetails.subject),
+            joinedload(CourseDetails.standard),
+            joinedload(CourseDetails.module)
+        )
 
+        courses = courses_query.all()
+
+        if not courses:
+            raise HTTPException(status_code=404, detail="No active courses found for this user.")
+
+        # Format response with course details but no content
+        response = []
+        for course_detail in courses:
+            response.append({
+                "course_info": {
+                    "course_name": course_detail.course.name if course_detail.course else None,
+                    "subject_name": course_detail.subject.name if course_detail.subject else None,
+                    "standard_name": course_detail.standard.name if course_detail.standard else None,
+                    "module_name": course_detail.module.name if course_detail.module else None,
+                },
+                "lessons": []  # No lessons available
+            })
+
+        return response
+
+    # Create the result dictionary when content is available
     result = {}
 
     for content in contents:
@@ -93,6 +122,7 @@ def get_user_contents(db: Session, user_id: int):
         response.append(course_data)
 
     return response
+
 
 @router.get("/course_active/enlrolled_course", response_model=List[dict])
 def get_user_contents_endpoint(current_user: LmsUsers = Depends(get_current_user), db: Session = Depends(get_db)):
