@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from ..models import Parent
 from ..schemas import ParentCreate,ParentUpdate
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,joinedload
 from db.session import get_db, SessionLocal
 from ..models import Student, ContactInformation, PreEducation, Parent, LmsUsers, Inquiry, DemoFormFill, CourseDetails,Course, Standard, module,Subject, Module, Payment
 from auth.auth_bearer import JWTBearer, get_admin_or_parent,get_user_id_from_token, get_admin_student_teacher_parent, get_current_user
@@ -120,7 +120,7 @@ def read_student_details(student_id: int, user_id: int = Depends(get_user_id_fro
 @router.get("/parent/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_parent)])
 def read_parent(user_id: int, db: Session = Depends(get_db)):
     try:
-        parent = db.query(Parent).filter(Parent.user_id == user_id).first()
+        parent = db.query(Parent).filter(Parent.user_id == user_id).options(joinedload(Parent.student)).first()
         if parent is None:
             raise HTTPException(status_code=404, detail="Parent not found")
         return {
@@ -132,6 +132,7 @@ def read_parent(user_id: int, db: Session = Depends(get_db)):
             "primary_no": parent.primary_no,
             "primary_email": parent.primary_email,
             "student_id":parent.student_id,
+            "s_user_id":parent.student.user_id,
             "user_type":parent.user_type,
         }
     except Exception as e:

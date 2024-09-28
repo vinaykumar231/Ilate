@@ -10,3 +10,5 @@ class Batch(Base):
     size= Column(String(223), nullable=False, unique=True)
 
     payments = relationship("Payment", back_populates="batch")
+
+    Fees = relationship("Fee", back_populates="batch")

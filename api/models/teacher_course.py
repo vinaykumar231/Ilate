@@ -17,4 +17,10 @@ class TeacherCourse(Base):
     course_Assign = relationship("Course_content", back_populates="teacher_by")
     user = relationship("LmsUsers", back_populates="teacher_courses")
     course = relationship("Course", back_populates="teacher_courses")
+
+ 
+
+    
+   
+    
    

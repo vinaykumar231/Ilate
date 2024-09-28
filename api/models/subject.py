@@ -16,5 +16,5 @@ class Subject(Base):
     course_contents = relationship("Course_content", back_populates="subject")
     discount_Questions = relationship("DiscountQuestion", back_populates="subject")
 
-
-
+    Fees = relationship("Fee", back_populates="subject")
+   

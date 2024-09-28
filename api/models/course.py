@@ -15,3 +15,5 @@ class Course(Base):
     payments = relationship("Payment", back_populates="course")
     course_contents = relationship("Course_content", back_populates="course")
     teacher_courses = relationship("TeacherCourse", back_populates="course")
+
+    Fees = relationship("Fee", back_populates="course")

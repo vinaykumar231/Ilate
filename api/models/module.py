@@ -14,3 +14,5 @@ class Module(Base):
     payments = relationship("Payment", back_populates="module")
     courses_content = relationship("Course_content", back_populates="module")
 
+    Fees = relationship("Fee", back_populates="module")
+    

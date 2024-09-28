@@ -6,6 +6,7 @@ from db.session import get_db
 from ..models import Fee, Course, Standard, Subject, Module, Batch
 from ..schemas import FeeCreate, FeeUpdate
 from auth.auth_bearer import JWTBearer, get_admin, get_teacher, get_admin_or_teacher, get_admin_or_student
+from sqlalchemy.orm import Session, joinedload
 
 router = APIRouter()
 
@@ -85,11 +86,37 @@ async def read_fees(
     return get_amount_by_criteria(course_id, standard_id, year, subject_id, module_id, batch_id, db)
 
 
-# Get all fees
-@router.get("/fees/all_fees/", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+@router.get("/fees/all_fees/", response_model=list[dict], dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def read_fees(db: Session = Depends(get_db)):
     try:
-        return db.query(Fee).all()
+        fees = db.query(Fee).options(
+            joinedload(Fee.course),
+            joinedload(Fee.standard),
+            joinedload(Fee.subject),
+            joinedload(Fee.module),
+            joinedload(Fee.batch)
+        ).all()
+
+        data = [
+            {
+                "fee_id": fee.id,
+                "course_id": fee.course_id,
+                "course_name": fee.course.name if fee.course else None,
+                "standard_name": fee.standard.name if fee.standard else None,
+                "standard_id": fee.standard.id if fee.standard else None,
+                "subject_name": fee.subject.name if fee.subject else None,
+                "subject_id": fee.subject.id if fee.subject else None,
+                "module_name": fee.module.name if fee.module else None,
+                "module_id": fee.module.id if fee.module else None,
+                "batch_id": fee.batch.id if fee.batch else None,
+                "batch_name": fee.batch.size if fee.batch else None,
+                "year": fee.year if fee.batch else None,
+                "amount": fee.amount
+            }
+            for fee in fees
+        ]
+
+        return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch fees: {str(e)}")
 

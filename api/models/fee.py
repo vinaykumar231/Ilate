@@ -14,6 +14,21 @@ class Fee(Base):
     batch_id=Column(ForeignKey('batches.id'))
     amount=Column(Float) 
 
+    # Relationships
+    course = relationship("Course", back_populates="Fees")  
+    subject = relationship("Subject", back_populates="Fees")
+    standard = relationship("Standard", back_populates="Fees")
+    module = relationship("Module", back_populates="Fees")
+    batch = relationship("Batch", back_populates="Fees")
+
+
+    
+    
+    
+    
+  
+
+
     
     
 

@@ -21,6 +21,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from typing import List
+from sqlalchemy import cast, Date
 
 router = APIRouter()
 
@@ -53,11 +54,12 @@ def create_attendance(
         existing_attendance = db.query(Attendance).filter(
             Attendance.student_id == student_id,
             Attendance.course_content_id == course_content_id,
-            func.date(Attendance.date) == func.date(ist_now)  
+            cast(Attendance.date, Date) == cast(ist_now, Date)
         ).first()
         
         if existing_attendance:
-            existing_attendance.status = [student_status_list[i]]
+            existing_attendance.status = [student_status_list[i]],
+            existing_attendance.date = ist_now
         else:
             db_attendance = Attendance(
                 student_id=student_id,

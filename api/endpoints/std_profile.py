@@ -6,7 +6,7 @@ from ..models import Student, ContactInformation, PreEducation, Parent, LmsUsers
 from ..schemas import (StudentContactCreate, PreEducationCreate, ParentCreate,
                        StudentContactUpdate, PreEducationUpdate, ParentInfoUpdate, CourseDetailsCreate, CourseDetailsUpdate,StudentUpdate_data, ContactInfoUpdate_data,
                        PreEducationUpdate_data, ParentInfoUpdate_data)
-from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_or_student
+from auth.auth_bearer import JWTBearer, get_current_user, get_admin, get_admin_or_student,get_admin_student_teacher_parent
 from ..schemas import StudentCreate ,StudentUpdate
 from datetime import datetime
 from typing import List, Union
@@ -468,7 +468,7 @@ def get_all_admissions(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=404, detail="Student not found")
 
-@router.get("/admission/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_student)])
+@router.get("/admission/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_student_teacher_parent)])
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     try:
         student = get_student(db, user_id)

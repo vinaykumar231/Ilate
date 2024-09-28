@@ -15,3 +15,6 @@ class Standard(Base):
     payments = relationship("Payment", back_populates="standard")
     courses_content = relationship("Course_content", back_populates="standard")
     discount_Questions = relationship("DiscountQuestion", back_populates="standards")
+
+    Fees = relationship("Fee", back_populates="standard")
+   

@@ -11,6 +11,8 @@ import os
 import uuid
 import shutil
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session, joinedload
+
 
 
 load_dotenv()
@@ -86,22 +88,25 @@ def create_video(
         raise HTTPException(status_code=500, detail=f"Failed to insert demo video: {str(e)}")
 
 @router.get("/videos", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
-def get_all_videos( db: Session = Depends(get_db)):
+def get_all_videos(db: Session = Depends(get_db)):
     try:
-        course = db.query(Course).first()
-        standard = db.query(Standard).first()
-        subject = db.query(Subject).first()
-        
-        videos = db.query(Video).all()
-        
+        videos = (
+            db.query(Video)
+            .options(
+                joinedload(Video.course),
+                joinedload(Video.subject),
+                joinedload(Video.standard)
+            ).all()
+        )
+
         video_list = []
         for video in videos:
             video_url = f"{base_url_path}/{video.url}"
-    
+
             video_data = {
-                "course_name":course.name,
-                "standard_name":standard.name,
-                "subject_name":subject.name,
+                "course_name": video.course.name,
+                "standard_name": video.standard.name,
+                "subject_name": video.subject.name,
                 "name": video.name,
                 "url": video_url,
                 "subject_id": video.subject_id,
@@ -110,10 +115,11 @@ def get_all_videos( db: Session = Depends(get_db)):
                 "standard_id": video.standard_id
             }
             video_list.append(video_data)
-        
+
         return video_list
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get videos: {str(e)}")
+
 ##############################################################################
 
 def save_upload(file_path: str) -> str:
