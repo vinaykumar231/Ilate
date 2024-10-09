@@ -111,7 +111,8 @@ def get_user_contents(db: Session, user_id: int):
             "content_info": {
                 "id": content.id,
                 "description": content.content_description,
-                "content_path": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
+                "content_path": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None,
+                "created_on":content.created_on
             }
         }
         result[course_key]["lessons"].append(lesson_data)
@@ -166,7 +167,8 @@ def get_course_content_by_id(content_id: int, db: Session = Depends(get_db)):
                 "content_info": {
                     "id": content.id,
                     "description": content.content_description,
-                    "content_path": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None
+                    "content_path": [f"{base_url_path}/{path}" for path in content.content_path] if content.content_path else None,
+                    "created_on":content.created_on
                 }
             }
             
@@ -184,6 +186,7 @@ def get_course_content_by_id(content_id: int, db: Session = Depends(get_db)):
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve course content: {str(e)}")
+    
 ##################################### get content based on  course_content_id from the content table  ##############################
 
 @router.get("/course_contents/{content_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin_or_teacher)])

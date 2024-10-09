@@ -210,6 +210,7 @@ async def fill_teacher_data(
     emergency_contact_name: str = Form(None),
     emergency_contact_number: str = Form(...),
     languages: str = Form(...),
+    branch_id:int=Form,
     db: Session = Depends(get_db),
     current_user: LmsUsers = Depends(get_current_user)
 ):
@@ -232,7 +233,7 @@ async def fill_teacher_data(
             email=email,
             department=department,
             profile_photo=profile_photo_url,
-        
+            branch_id=branch_id,
            
         )
         db.add(teacher_data)
@@ -650,6 +651,28 @@ async def update_teacher(
     except Exception as e:
     
         raise HTTPException(status_code=500, detail=f"Failed to update teacher details: {str(e)}")
+
+@router.get("/teachers/branch/{branch_id}", response_model=None)
+def get_teachers_by_branch(branch_id: int, db: Session = Depends(get_db)):
+    teachers = db.query(Teacher).options(joinedload(Teacher.branch)).filter(Teacher.branch_id == branch_id).all()
+    
+    if not teachers:
+        raise HTTPException(status_code=404, detail="No teachers found for this branch")
+    all_data=[]
+    for teacher in teachers:
+        data={
+            "user_id":teacher.user_id ,
+            "teacher_name": teacher.name,
+            "email": teacher.email,
+            "Teacher_id": teacher.Teacher_id,
+            "profile_photo":teacher.profile_photo ,
+            "branch_id":teacher.branch_id,
+            "branch_name":teacher.branch.name,
+
+        }
+        all_data.append(data)
+
+    return all_data
 
 @router.delete("/teachers/{user_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 async def delete_teacher(user_id: int, db: Session = Depends(get_db)):

@@ -17,12 +17,29 @@ async def create_branch(branch_data: BranchCreate, db: Session = Depends(get_db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=" failed to insert branch")
 
-@router.get("/branches/", response_model=None)
+# @router.get("/branches/", response_model=None)
+# async def read_all_branches(db: Session = Depends(get_db)):
+#     try:
+#         return db.query(Branch).all()
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=" failed to fetch branch")
+    
+@router.get("/branches/get_all/", response_model=None)
 async def read_all_branches(db: Session = Depends(get_db)):
     try:
-        return db.query(Branch).all()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=" failed to fetch branch")
+        all_data=[]
+        get_data=db.query(Branch).all()
+        for branch in get_data:
+            data={
+                "id":branch.id,
+                "name":branch.name,
+            }
+            all_data.append(data)
+        return {"all_branches":all_data}
+    except:
+        raise HTTPException(status_code=404, detail="branch not found")
+        
+        
 
 @router.get("/branches/{branch_id}", response_model=None)
 async def read_branch(branch_id: int, db: Session = Depends(get_db)):

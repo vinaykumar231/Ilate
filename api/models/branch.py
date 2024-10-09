@@ -9,3 +9,5 @@ class Branch(Base):
     name = Column(String(255), nullable=False)
 
     user = relationship("LmsUsers", back_populates="branch")
+    student = relationship("Student", back_populates="branch")
+    teacher = relationship("Teacher", back_populates="branch")

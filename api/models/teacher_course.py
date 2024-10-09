@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from db.base import Base
 
 class TeacherCourse(Base):
-    __tablename__ = "teacher_courses4"
+    __tablename__ = "teacher_courses_tb"
 
     id = Column(Integer, primary_key=True, index=True )
     teacher_id = Column(Integer, ForeignKey("teachers.Teacher_id"))

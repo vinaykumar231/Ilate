@@ -240,6 +240,7 @@ async def fill_admission_form(
     id_proof: UploadFile = File(...),
     address_proof: UploadFile = File(default=None),
     profile_photo: UploadFile = File(...),
+    branch_id:int=Form,
     db: Session = Depends(get_db),
     current_user: LmsUsers = Depends(get_current_user)
 ):
@@ -287,6 +288,7 @@ async def fill_admission_form(
             id_proof=id_proof_path,
             Address_proof=address_proof_path,
             profile_photo=profile_photo_url,
+            branch_id=branch_id,
         )
         db.add(db_student)
         db.flush()
@@ -552,6 +554,37 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
         return student_data
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Failed to fetch student admission form: {str(e)}")
+
+@router.get("/students/branch/{branch_id}", response_model=None)
+def get_students_by_branch(branch_id: int, db: Session = Depends(get_db)):
+    students = db.query(Student).options(joinedload(Student.branch)).filter(Student.branch_id == branch_id).all()
+    
+    if not students:
+        raise HTTPException(status_code=404, detail="No students found for this branch")
+    all_data=[]
+    for student in students:
+        data={
+            "user_id":student.user_id,
+            "first_name": student.first_name,
+            "middle_name":student.middle_name,
+            "last_name":student.last_name,
+            "date_of_birth" :student.date_of_birth,
+            "gender":student.gender,
+            "nationality":student.nationality,
+            "referral" :student.referral,
+            "id_proof" :student.id_proof,
+            "Address_proof": student.Address_proof,
+            "profile_photo":student.profile_photo,
+            "date_of_joining" :student.date_of_joining,
+            "branch_id" :student.branch_id,
+            "branch_name":student.branch.name,
+            "date_of_completion" :student.date_of_completion,
+
+        }
+        all_data.append(data)
+
+    return all_data
+    
 
 
 @router.put("/admission/{student_id}", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_current_user)])

@@ -164,7 +164,8 @@ async def create_lesson_and_content(
         content_description=content_descriptions,
         content_path=file_paths,  
         lesson_id=new_lesson.lesson_id,
-        course_content_id=course_content.id  
+        course_content_id=course_content.id,
+        created_on=ist_now  
     )
     db.add(new_content)
 
