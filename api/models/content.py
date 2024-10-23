@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String,ForeignKey, JSON, Boolean
+from sqlalchemy import Column, Integer, String,ForeignKey, JSON, Boolean,DateTime,func
 from sqlalchemy.orm import relationship
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from db.base import Base
@@ -15,6 +15,7 @@ class Content(Base):
     course_content_id = Column(Integer, ForeignKey("courses_content.id")) 
     content_description = Column(String(255)) 
     content_path = Column(JSON) 
+    created_on = Column(DateTime, default=func.now())
 
     lesson = relationship('Lesson', back_populates='content')
 

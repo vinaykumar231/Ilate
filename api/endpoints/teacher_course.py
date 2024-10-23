@@ -36,6 +36,14 @@ def assign_courses_to_teacher(request: AssignCoursesRequest,db: Session = Depend
     course = db.query(Course).filter(Course.id == request.course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Check if a course is already assigned to the teacher
+    existing_assignment = db.query(TeacherCourse).filter(
+        TeacherCourse.teacher_id == request.teacher_id,
+        TeacherCourse.course_content_id == request.course_content_id
+    ).first()
+    if existing_assignment:
+        raise HTTPException(status_code=400, detail="This course is already assigned to this teacher.")
 
     # Check if all course contents exist
     course_contents = db.query(Course_content).filter(Course_content.id.in_(request.course_content_id)).all()

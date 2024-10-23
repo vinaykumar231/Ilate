@@ -156,6 +156,7 @@ class UserCreate(BaseModel):
     user_password: str
     user_type: UserType = UserType.user
     phone_no: str
+    branch_id:int
 
     class Config:
         from_attributes = True

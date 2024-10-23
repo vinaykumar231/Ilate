@@ -12,6 +12,7 @@ class Teacher(Base):
     profile_photo=Column(String(255))
     email = Column(String(255), unique=True)
     department = (String(255))
+    branch_id = Column(Integer, ForeignKey("branches.id"))
     
     contact_information = relationship("TeacherContact", back_populates="teacher")
     educations = relationship("Education", back_populates="teacher")
@@ -22,4 +23,6 @@ class Teacher(Base):
     employee = relationship('Employee', back_populates='teacher')
     user = relationship("LmsUsers", back_populates="teacher")
     courses_by = relationship("TeacherCourse", back_populates="teacher_Assign")
-    created_question_papers = relationship("QuestionPaper1", back_populates="teacher")
+    #created_question_papers = relationship("QuestionPaper1", back_populates="teacher")
+
+    branch = relationship("Branch", back_populates="teacher")

@@ -138,10 +138,12 @@ async def create_lesson_and_content(
 
     utc_now = pytz.utc.localize(datetime.utcnow())
     ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+    
     lesson_for_test = QuestionPaper1(
     lesson_id=new_lesson.lesson_id,
     lesson_title=lesson_title,
-    created_by=teacher.Teacher_id,
+    course_content_id=course_content.id,
+    created_by=teacher.user_id,
     created_on=ist_now
 )
     db.add(lesson_for_test)
@@ -164,7 +166,8 @@ async def create_lesson_and_content(
         content_description=content_descriptions,
         content_path=file_paths,  
         lesson_id=new_lesson.lesson_id,
-        course_content_id=course_content.id  
+        course_content_id=course_content.id, 
+        created_on=ist_now
     )
     db.add(new_content)
 

@@ -35,6 +35,7 @@ def get_student(db: Session, user_id: int):
         .options(joinedload(Student.contact_info),
                  joinedload(Student.pre_education),
                  joinedload(Student.parent_info),
+                 joinedload(Student.branch),
                  joinedload(Student.course_details)) \
         .filter(Student.user_id == user_id).first()
 
@@ -247,6 +248,10 @@ async def fill_admission_form(
     if existing_form:
         raise HTTPException(status_code=400, detail="Admission form has already been submitted")
     
+    user_db=db.query(LmsUsers).filter(LmsUsers.user_id== current_user.user_id).first()
+    if not user_db:
+         raise HTTPException(status_code=404, detail="your are not correct user")
+    
     id_proof_path = save_upload_file(id_proof)
     address_proof_path = save_upload_file(address_proof)
     profile_photo_url = save_upload_file(profile_photo)
@@ -287,6 +292,7 @@ async def fill_admission_form(
             id_proof=id_proof_path,
             Address_proof=address_proof_path,
             profile_photo=profile_photo_url,
+            branch_id=user_db.branch_id,
         )
         db.add(db_student)
         db.flush()
@@ -429,6 +435,7 @@ def get_all_admissions(db: Session = Depends(get_db)):
                 "nationality": student.nationality,
                 "referral": student.referral,
                 "date_of_joining": student.date_of_joining,
+                "branch_name": student.branch.name,
                 "date_of_completion": student.date_of_completion,
                 "id_proof_url": id_proof_url,
                 "address_proof_url": address_proof_url,
@@ -499,6 +506,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
             "nationality": student.nationality,
             "referral": student.referral,
             "date_of_joining": student.date_of_joining,
+            "branch_name": student.branch.name,
             "date_of_completion": student.date_of_completion,
             "id_proof_url": id_proof_url,
             "address_proof_url": address_proof_url,

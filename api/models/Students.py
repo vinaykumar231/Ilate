@@ -23,6 +23,7 @@ class Student(Base):
     Address_proof = Column(String(255)) 
     profile_photo=Column(String(255)) 
     date_of_joining = Column(Date)
+    branch_id = Column(Integer, ForeignKey("branches.id"))
     date_of_completion = Column(Date, nullable=True)
     
 
@@ -31,6 +32,8 @@ class Student(Base):
     user = relationship("LmsUsers", back_populates="student")
     contact_info = relationship("ContactInformation",uselist=False, back_populates="student")
     course_details = relationship("CourseDetails",uselist=False, back_populates="student")
+
+    branch = relationship("Branch", back_populates="student")
 
 
 def save_upload(upload_file: UploadFile) -> str:

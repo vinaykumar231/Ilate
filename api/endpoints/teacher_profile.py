@@ -30,6 +30,7 @@ def get_teacher(db: Session, user_id: int):
         joinedload(Teacher.dependents),
         joinedload(Teacher.emergency_contact),
         joinedload(Teacher.skills),
+        joinedload(Teacher.branch),
         joinedload(Teacher.languages_spoken)
     )
     if user_id:
@@ -221,6 +222,10 @@ async def fill_teacher_data(
     validate_phone_number(emergency_contact_number, "Emergency contact number")
     validate_emails(primary_email_id)
 
+    user_db=db.query(LmsUsers).filter(LmsUsers.user_id== current_user.user_id).first()
+    if not user_db:
+         raise HTTPException(status_code=404, detail="your are not correct user")
+
     try:
         existing_form = db.query(Teacher).filter(Teacher.user_id == current_user.user_id).first()
         if existing_form:
@@ -232,7 +237,7 @@ async def fill_teacher_data(
             email=email,
             department=department,
             profile_photo=profile_photo_url,
-        
+            branch_id=user_db.branch_id,
            
         )
         db.add(teacher_data)
@@ -423,6 +428,7 @@ def get_Teacher_user_profile(user_id: int, db: Session = Depends(get_db)):
             "name": teacher.name,
             "email": teacher.email,
             "profile_photo": teacher.profile_photo,
+            "branch_name": teacher.branch.name,
             "employee":{
                 "dob" :emplyee_info.dob if emplyee_info else None,
                 "gender":emplyee_info.gender if emplyee_info else None,

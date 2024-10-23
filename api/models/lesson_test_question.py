@@ -9,10 +9,10 @@ import uuid
 import os
 
 class LessontestQuestion(Base):
-    __tablename__ = 'lesson_test_Questions'
+    __tablename__ = 'lesson_test_Questions2'
     
     id = Column(Integer, primary_key=True, index=True)
-    question_paper_id = Column(Integer, ForeignKey('question_papers1.id'))
+    question_paper_id = Column(Integer, ForeignKey('question_papers2.id'))
     question_text = Column(String(255))
     question_images = Column(String(255), nullable=True)
     option1_text = Column(String(255))
