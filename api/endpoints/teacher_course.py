@@ -20,15 +20,16 @@ router = APIRouter()
 class AssignCoursesRequest(BaseModel):
     teacher_id: int
     course_id: int
-    course_content_id: List[int]  
+    course_content_id: int  
 
     class Config:
-        from_attributes = True 
-    
+        from_attributes = True
 
 @router.post("/teachers/assign_courses")
-def assign_courses_to_teacher(request: AssignCoursesRequest,db: Session = Depends(get_db)):
-    
+def assign_courses_to_teacher(
+    request: AssignCoursesRequest,
+    db: Session = Depends(get_db)
+):
     teacher = db.query(Teacher).filter(Teacher.Teacher_id == request.teacher_id).first()
     if not teacher:
         raise HTTPException(status_code=404, detail="Teacher not found")
@@ -36,49 +37,68 @@ def assign_courses_to_teacher(request: AssignCoursesRequest,db: Session = Depend
     course = db.query(Course).filter(Course.id == request.course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
-    
-    # Check if a course is already assigned to the teacher
-    existing_assignment = db.query(TeacherCourse).filter(
-        TeacherCourse.teacher_id == request.teacher_id,
-        TeacherCourse.course_content_id == request.course_content_id
-    ).first()
+
+    course_content = (
+        db.query(Course_content)
+        .filter(Course_content.id == request.course_content_id)
+        .first()
+    )
+    if not course_content:
+        raise HTTPException(
+            status_code=404, 
+            detail="Course content not found"
+        )
+
+    existing_assignment = (
+        db.query(TeacherCourse)
+        .filter(
+            TeacherCourse.teacher_id == request.teacher_id,
+            TeacherCourse.course_id == request.course_id,
+            TeacherCourse.course_content_id == request.course_content_id
+        )
+        .first()
+    )
+
     if existing_assignment:
-        raise HTTPException(status_code=400, detail="This course is already assigned to this teacher.")
+        raise HTTPException(
+            status_code=400, 
+            detail="This course content is already assigned to this teacher"
+        )
 
-    # Check if all course contents exist
-    course_contents = db.query(Course_content).filter(Course_content.id.in_(request.course_content_id)).all()
-    if len(course_contents) != len(request.course_content_id):
-        raise HTTPException(status_code=404, detail="One or more course contents not found")
-
-    assigned_courses = []
     try:
-        for course_content in course_contents:
-            teacher_course = TeacherCourse(
-                teacher_id=teacher.Teacher_id,
-                course_id=request.course_id,
-                course_content_id=course_content.id,
-                user_id=teacher.user_id,  
-                is_assign_course=True
-            )
-            db.add(teacher_course)
-            assigned_courses.append({
-                "course_id": request.course_id,
-                "course_name":course_content.course.name,
-                "course_content_id": course_content.id,
-                "course_content_standard_name": course_content.standard.name,
-                "course_content_subject_name": course_content.subject.name,
-                "course_content_module_name": course_content.module.name,
-            })
+        teacher_course = TeacherCourse(
+            teacher_id=teacher.Teacher_id,
+            course_id=request.course_id,
+            course_content_id=course_content.id,
+            user_id=teacher.user_id,
+            is_assign_course=True
+        )
+        
+        db.add(teacher_course)
+
+        assigned_course = {
+            "course_id": request.course_id,
+            "course_name": course_content.course.name,
+            "course_content_id": course_content.id,
+            "course_content_standard_name": course_content.standard.name,
+            "course_content_subject_name": course_content.subject.name,
+            "course_content_module_name": course_content.module.name,
+        }
+
         db.commit()
-    except:
+
+    except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to assign courses to teacher:")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to assign course to teacher: {str(e)}"
+        )
 
     return {
-        "message": "Courses assigned successfully",
+        "message": "Course assigned successfully",
         "teacher_id": teacher.Teacher_id,
         "teacher_name": teacher.name,
-        "assigned_courses": assigned_courses
+        "assigned_course": assigned_course
     }
 
 class CourseResponse(BaseModel):
