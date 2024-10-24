@@ -62,7 +62,7 @@ def assign_courses_to_teacher(
     if existing_assignment:
         raise HTTPException(
             status_code=400, 
-            detail="This course content is already assigned to this teacher"
+            detail="This course is already assigned to this teacher"
         )
 
     try:
