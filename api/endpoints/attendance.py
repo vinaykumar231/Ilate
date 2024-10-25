@@ -54,7 +54,7 @@ def create_attendance(
         existing_attendance = db.query(Attendance).filter(
             Attendance.student_id == student_id,
             Attendance.course_content_id == course_content_id,
-            cast(Attendance.date, Date) == cast(ist_now, Date)
+            cast(Attendance.date, Date) == ist_now.date()
         ).first()
         
         if existing_attendance:
