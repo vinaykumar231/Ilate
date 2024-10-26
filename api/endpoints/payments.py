@@ -104,7 +104,7 @@ def get_payment_history(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch payment history: {str(e)}")
 
 
-@router.get("/payments/FetchAll", response_model=Optional[List[dict]], dependencies=[Depends(JWTBearer()), Depends(get_admin)])
+@router.get("/payments/FetchAll", response_model=None, dependencies=[Depends(JWTBearer()), Depends(get_admin)])
 def read_all_payments(db: Session = Depends(get_db)):
     try:
     
