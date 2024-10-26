@@ -202,8 +202,8 @@ def update_attendance(student_id: int, status: AttendanceStatus, db: Session = D
     return attendance
 
 @router.delete("/attendance/")
-def attendance_delete(student_id:int, db:Session=Depends(get_db)):
-    Attendance_db=db.query(Attendance).filter(Attendance.student_id== student_id).first()
+def attendance_delete(attendance_id:int, db:Session=Depends(get_db)):
+    Attendance_db=db.query(Attendance).filter(Attendance.id== attendance_id).first()
     if not Attendance_db:
         raise HTTPException(status_code=404, detail="Attendance record not found")
     db.delete(Attendance_db)
