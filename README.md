@@ -118,18 +118,32 @@ This is a comprehensive Learning Management System (LMS) built using **FastAPI**
 
 ---
 
-## Future Enhancements
+Future Enhancements
 - Integration with third-party video conferencing tools.
 - Enhanced reporting and analytics.
 - Mobile app support.
 
 ---
 
-## License
-This project is licensed All these things are part of **Maitri AI**..
+Security Features
 
----
+- Role-based access control
+- Secure authentication
+- Data encryption
+- Regular security audits
 
-## Author
-- Vinay Kumar
-- vinaykumar.pydev@gmail.com
+Contributing
+
+- Fork repository
+- Create feature branch
+- Commit changes
+- Push to branch
+- Create pull request
+
+License
+Proprietary software. All rights reserved by Maitri AI.
+
+Contact
+Vinay Kumar
+Email: vinaykumar.pydev@gmail.com
+GitHub: @vinaykumar231
