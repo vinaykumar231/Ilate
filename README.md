@@ -132,6 +132,8 @@ This is a comprehensive Learning Management System (LMS) built using **FastAPI**
 - Data encryption
 - Regular security audits
 
+---
+
 ### **Contributing**
 
 - Fork repository
@@ -140,8 +142,12 @@ This is a comprehensive Learning Management System (LMS) built using **FastAPI**
 - Push to branch
 - Create pull request
 
+---
+
 ### **License**
 Proprietary software. All rights reserved by Maitri AI.
+
+---
 
 ### **Contact**
 Vinay Kumar
