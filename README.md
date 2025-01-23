@@ -68,8 +68,8 @@ This is a comprehensive Learning Management System (LMS) built using **FastAPI**
 ### **Backend**
 1. Clone the repository:
    ```bash
-   git clone <repository_url>
-   cd backend
+   git clone https://github.com/vinaykumar231/Ilate.git
+   cd LMS
    ```
 2. Install dependencies:
    ```bash
@@ -83,21 +83,6 @@ This is a comprehensive Learning Management System (LMS) built using **FastAPI**
    uvicorn main:app --reload
    ```
 5. Access the API docs at `http://localhost:8000/docs`.
-
-### **Frontend**
-1. Navigate to the frontend folder:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the development server:
-   ```bash
-   npm start
-   ```
-4. Access the application at `http://localhost:3000`.
 
 ---
 
