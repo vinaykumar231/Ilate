@@ -126,11 +126,10 @@ This is a comprehensive Learning Management System (LMS) built using **FastAPI**
 ---
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed All these things are part of **Maitri AI**..
 
 ---
 
 ## Author
-- ** 9004173181 **
 - Vinay Kumar
-
+- vinaykumar.pydev@gmail.com
