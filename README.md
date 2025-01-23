@@ -150,6 +150,6 @@ Proprietary software. All rights reserved by Maitri AI.
 ---
 
 ### **Contact**
-Vinay Kumar
-Email: vinaykumar.pydev@gmail.com
-GitHub: @vinaykumar231
+- Vinay Kumar
+- Email: vinaykumar.pydev@gmail.com
+- GitHub: @vinaykumar231
